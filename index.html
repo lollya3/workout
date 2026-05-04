@@ -696,6 +696,75 @@ let fChart = null;
 let qaStep = 0, qaAns = {}, plan = [];
 let browseIdx = null, browseCat = 'all';
 
+function localDate(d) {
+  const dt = d || new Date();
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth()+1).padStart(2,'0');
+  const day = String(dt.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function calcStreakFor(activeDateSet) {
+  const today = localDate();
+  const sorted = [...activeDateSet].sort().reverse();
+  let streak = 0;
+  let cur = new Date(today + 'T12:00:00');
+  for (const d of sorted) {
+    if (d === localDate(cur)) { streak++; cur.setDate(cur.getDate()-1); }
+    else if (d < localDate(cur)) break;
+  }
+  return streak;
+}
+
+function getWorkoutDates() {
+  return new Set(sessions.filter(s => s.entries.length > 0).map(s => s.date));
+}
+
+function getDailyDates() {
+  const dates = new Set();
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('wt-daily-checked-')) {
+      const dateStr = key.replace('wt-daily-checked-', '');
+      try {
+        const checked = JSON.parse(localStorage.getItem(key) || '[]');
+        const list = JSON.parse(localStorage.getItem('wt-daily-list') || '[]');
+        if (checked.length >= (list.length || 12)) dates.add(dateStr);
+      } catch(e) {}
+    }
+  }
+  return dates;
+}
+
+function getGoalDates() {
+  const dates = new Set();
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('wt-goal-done-')) {
+      const dateStr = key.replace('wt-goal-done-', '');
+      const goalKey = 'wt-goal-' + dateStr;
+      const goalText = localStorage.getItem(goalKey);
+      if (goalText && goalText.trim()) dates.add(dateStr);
+    }
+  }
+  return dates;
+}
+
+function getTripleCrownDates() {
+  const workout = getWorkoutDates();
+  const daily = getDailyDates();
+  const goal = getGoalDates();
+  const all = new Set();
+  workout.forEach(d => { if (daily.has(d) && goal.has(d)) all.add(d); });
+  return all;
+}
+
+function calcStreak() {
+  // Default streak = workout OR daily dozen (for backward compat)
+  const combined = new Set([...getWorkoutDates(), ...getDailyDates()]);
+  return calcStreakFor(combined);
+}
+
 function save() { localStorage.setItem('wt-sessions', JSON.stringify(sessions)); }
 
 // ── MIGRATE: merge sessions by date, move location to entries ──
@@ -720,8 +789,8 @@ function migrateSessions() {
   }
 }
 
-function getDailyGoalKey() { return 'wt-goal-' + new Date().toISOString().split('T')[0]; }
-function getDailyGoalDoneKey() { return 'wt-goal-done-' + new Date().toISOString().split('T')[0]; }
+function getDailyGoalKey() { return 'wt-goal-' + localDate(); }
+function getDailyGoalDoneKey() { return 'wt-goal-done-' + localDate(); }
 
 function saveDailyGoal() {
   const val = document.getElementById('daily-goal-input')?.value || '';
@@ -797,7 +866,7 @@ function renderGoalReminder() {
 }
 
 // ── INIT ──────────────────────────────────────────────────
-document.getElementById('ses-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('ses-date').value = localDate();
 loadCustomEx();
 migrateSessions();
 renderFavGrid();
@@ -981,7 +1050,7 @@ function exCardHTML(e) {
 function renderTodayCard() {
   const el = document.getElementById('today-logged-list');
   if (!el) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const todaySessions = sessions.filter(s => s.date === today);
   if (!todaySessions.length) { el.innerHTML = ''; return; }
   const ses = todaySessions[0];
@@ -1200,6 +1269,40 @@ const QUOTES = [
   {text:"Push yourself again and again. Don't give an inch until the final buzzer sounds.", attr:"Larry Bird", color:"#1e2a1e", text_c:"#fff"},
   {text:"It's not the will to win that matters — everyone has that. It's the will to prepare to win that matters.", attr:"Bear Bryant", color:"#2a1e1a", text_c:"#fff"},
   {text:"Age is no barrier. It's a limitation you put on your mind.", attr:"Jackie Joyner-Kersee", color:"#1a3a3a", text_c:"#fff"},
+  // Habit gurus
+  {text:"You do not rise to the level of your goals. You fall to the level of your systems.", attr:"James Clear, Atomic Habits", color:"#2a1a3a", text_c:"#fff"},
+  {text:"Every action you take is a vote for the type of person you wish to become.", attr:"James Clear, Atomic Habits", color:"#1a2a3a", text_c:"#fff"},
+  {text:"The most effective form of motivation is progress. When we get a signal that we are moving forward, we become more motivated to continue down that path.", attr:"James Clear", color:"#3a1e2a", text_c:"#fff"},
+  {text:"Habits are the compound interest of self-improvement.", attr:"James Clear, Atomic Habits", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Success is the product of daily habits — not once-in-a-lifetime transformations.", attr:"James Clear", color:"#2a3a1e", text_c:"#fff"},
+  {text:"The secret of getting ahead is getting started.", attr:"Mark Twain", color:"#1a1e3a", text_c:"#fff"},
+  {text:"We are what we repeatedly do. Excellence, then, is not an act, but a habit.", attr:"Aristotle", color:"#3a2a1e", text_c:"#fff"},
+  {text:"First forget inspiration. Habit is more dependable. Habit will sustain you whether you're inspired or not.", attr:"Octavia Butler", color:"#1e2a3a", text_c:"#fff"},
+  // Famous leaders
+  {text:"Success is not final, failure is not fatal: it is the courage to continue that counts.", attr:"Winston Churchill", color:"#1a3a2a", text_c:"#fff"},
+  {text:"We don't have to be defined by the things we did or didn't do in our past.", attr:"Barack Obama", color:"#2a1e3a", text_c:"#fff"},
+  {text:"The future belongs to those who believe in the beauty of their dreams.", attr:"Eleanor Roosevelt", color:"#3a1a2a", text_c:"#fff"},
+  {text:"You gain strength, courage and confidence by every experience in which you really stop to look fear in the face.", attr:"Eleanor Roosevelt", color:"#1e3a1e", text_c:"#fff"},
+  {text:"It does not matter how slowly you go as long as you do not stop.", attr:"Confucius", color:"#2a2a1e", text_c:"#fff"},
+  {text:"Our greatest glory is not in never falling, but in rising every time we fall.", attr:"Confucius", color:"#1a2a2a", text_c:"#fff"},
+  {text:"Strength does not come from physical capacity. It comes from an indomitable will.", attr:"Mahatma Gandhi", color:"#3a1e1e", text_c:"#fff"},
+  {text:"The body achieves what the mind believes.", attr:"Napoleon Hill", color:"#1e1a2a", text_c:"#fff"},
+  {text:"Believe you can and you're halfway there.", attr:"Theodore Roosevelt", color:"#2a3a2a", text_c:"#fff"},
+  {text:"Do something today that your future self will thank you for.", attr:"Sean Patrick Flanery", color:"#1a3a1e", text_c:"#fff"},
+  // More athletes and coaches
+  {text:"The difference between a successful person and others is not a lack of strength, not a lack of knowledge, but rather a lack of will.", attr:"Vince Lombardi", color:"#3a2a2a", text_c:"#fff"},
+  {text:"Winners never quit and quitters never win.", attr:"Vince Lombardi", color:"#1e2a1a", text_c:"#fff"},
+  {text:"If you train hard, you'll not only be hard, you'll be hard to beat.", attr:"Herschel Walker", color:"#2a1a1e", text_c:"#fff"},
+  {text:"The only way to prove that you're a good sport is to lose.", attr:"Ernie Banks", color:"#1a1e2a", text_c:"#fff"},
+  {text:"You have to expect things of yourself before you can do them.", attr:"Michael Jordan", color:"#3a1a1a", text_c:"#fff"},
+  {text:"The more difficult the victory, the greater the happiness in winning.", attr:"Pelé", color:"#1e3a3a", text_c:"#fff"},
+  {text:"What makes something special is not just what you have to gain, but what you feel there is to lose.", attr:"Andre Agassi", color:"#2a1e2a", text_c:"#fff"},
+  {text:"I've missed more than 9,000 shots in my career. I've lost almost 300 games. I've failed over and over and over again in my life. And that is why I succeed.", attr:"Michael Jordan", color:"#1a2a1e", text_c:"#fff"},
+  {text:"You dream. You plan. You reach. There will be obstacles. There will be doubters. There will be mistakes. But with hard work, with belief, with confidence and trust in yourself and those around you, there are no limits.", attr:"Michael Phelps", color:"#2a3a1a", text_c:"#fff"},
+  {text:"Pain is temporary. It may last a minute, or an hour, or a day, or a year, but eventually it will subside and something else will take its place. If I quit, however, it lasts forever.", attr:"Lance Armstrong", color:"#1e1e3a", text_c:"#fff"},
+  {text:"The mind is the limit. As long as the mind can envision the fact that you can do something, you can do it.", attr:"Arnold Schwarzenegger", color:"#3a1e3a", text_c:"#fff"},
+  {text:"If something stands between you and your success, move it. Never be denied.", attr:"Dwayne Johnson", color:"#1a3a2a", text_c:"#fff"},
+  {text:"Wake up determined. Go to bed satisfied.", attr:"Dwayne Johnson", color:"#2a2a3a", text_c:"#fff"},
 ];
 
 const TIPS = [
@@ -1218,6 +1321,17 @@ const TIPS = [
   {icon:"🫀", title:"Strength training protects your heart", body:"Resistance training reduces blood pressure, improves cholesterol, and decreases cardiovascular risk — sometimes as effectively as cardio. You don't have to choose between strong and healthy."},
   {icon:"🦴", title:"Bone density and lifting", body:"Strength training is one of the best things you can do for bone density, especially for women over 50. Weight-bearing exercise stimulates bone formation and reduces osteoporosis risk significantly."},
   {icon:"⚡", title:"Compound movements first", body:"Do your biggest, most demanding exercises — squats, deadlifts, bench press, rows — at the start of your workout when you have the most energy. Save isolation work for the end."},
+  {icon:"🔄", title:"The two-minute rule", body:"If a habit takes less than two minutes to start, do it now. Can't get to the gym? Do two minutes of movement at home. Starting is the hardest part — once you begin, you usually keep going."},
+  {icon:"🎯", title:"Identity-based habits", body:"The most lasting change comes from shifting how you see yourself. Instead of 'I'm trying to exercise,' say 'I'm someone who moves every day.' Your habits follow your identity."},
+  {icon:"📌", title:"Habit stacking", body:"Attach a new habit to an existing one. 'After I pour my morning coffee, I will do 10 minutes of movement.' Linking new behaviors to established ones dramatically increases follow-through."},
+  {icon:"🌱", title:"Small consistent beats big occasional", body:"1% better every day compounds to 37x better over a year. 1% worse every day compounds to nearly zero. The gap between where you are and where you want to be is built one small decision at a time."},
+  {icon:"🏋️", title:"Strength training and aging", body:"After 30, adults lose 3-8% of muscle mass per decade without resistance training. After 60 that rate accelerates. Lifting weights isn't just about looking good — it's the most powerful anti-aging tool available."},
+  {icon:"🧬", title:"Exercise changes your brain", body:"Regular exercise increases BDNF — brain-derived neurotrophic factor — which strengthens neural connections, improves memory, and reduces anxiety and depression. Your workout is literally making you smarter."},
+  {icon:"⏰", title:"The best time to work out", body:"The best time to exercise is whenever you'll actually do it. Morning workouts have a slight edge for consistency since willpower hasn't been depleted yet — but an evening workout beats no workout every time."},
+  {icon:"🔁", title:"Never miss twice", body:"Missing one workout happens to everyone. Missing two in a row is the start of a new habit. The rule is simple: you can miss once, but never twice. One bad day doesn't break you — quitting does."},
+  {icon:"💬", title:"Talk to yourself like a coach", body:"Research shows that referring to yourself by name or saying 'you can do this' rather than 'I can do this' creates psychological distance that improves performance under pressure. Be your own best coach."},
+  {icon:"🎭", title:"Motivation follows action", body:"Waiting to feel motivated before you start is backwards. Action creates motivation, not the other way around. Start before you're ready. The feeling of momentum comes after you begin, not before."},
+  {icon:"🌊", title:"Recovery is where progress happens", body:"Training breaks muscle down. Sleep, nutrition, and rest days build it back stronger. Without recovery, you're just accumulating damage. A hard training week with poor recovery beats a moderate week with good recovery."},
 ];
 
 // Track recently shown quote authors to avoid repeats
@@ -1241,21 +1355,12 @@ function renderMotivation() {
   const q = pickQuote();
   const t = TIPS[Math.floor(Math.random() * TIPS.length)];
 
-  // Get today's stats for a small stat strip
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const todaySes = sessions.filter(s => s.date === today);
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   const weekSessions = sessions.filter(s => new Date(s.date+'T12:00:00') >= weekStart).length;
-  const dates = [...new Set(sessions.map(s => s.date))].sort().reverse();
-  let streak = 0;
-  if (dates.length) {
-    let cur = new Date(today+'T12:00:00');
-    for (const d of dates) {
-      if (d === cur.toISOString().split('T')[0]) { streak++; cur.setDate(cur.getDate()-1); }
-      else break;
-    }
-  }
+  const streak = calcStreak();
 
   document.getElementById('motiv-content').innerHTML = `
     <div class="motiv-card" style="background:${q.color};color:${q.text_c}">
@@ -1561,7 +1666,7 @@ function saveSuggestion(exId) {
   const eachHand = eachBtn ? eachBtn.classList.contains('on') : false;
   const totalWeight = eachHand ? weight * 2 : weight;
   const loc = document.getElementById('ses-loc')?.value || 'gym';
-  const date = new Date().toISOString().split('T')[0];
+  const date = localDate();
   document.getElementById('ses-date').value = date;
   let ses = sessions.find(s => s.date === date);
   if (!ses) { ses = {id: Date.now(), date, entries: []}; sessions.push(ses); }
@@ -1647,7 +1752,7 @@ function saveInlineSet(exId) {
   const eachHand = eachBtn ? eachBtn.classList.contains('on') : false;
   const totalWeight = eachHand ? weight * 2 : weight;
   const loc = document.getElementById('ses-loc')?.value || 'gym';
-  const date = new Date().toISOString().split('T')[0];
+  const date = localDate();
   document.getElementById('ses-date').value = date;
   let ses = sessions.find(s => s.date === date);
   if (!ses) { ses = {id: Date.now(), date, entries: []}; sessions.push(ses); }
@@ -1802,7 +1907,7 @@ const DAILY_DEFAULT = [
 
 function getDailyKey(suffix) {
   if (suffix === 'checked') {
-    return 'wt-daily-checked-' + new Date().toISOString().split('T')[0];
+    return 'wt-daily-checked-' + localDate();
   }
   return 'wt-daily-' + suffix; // list and other data persist permanently
 }
@@ -2359,7 +2464,7 @@ function savePlanItem(idx) {
   }
   const ex = EX.find(e => e.id === plan[idx].exId);
   if (!ex) return;
-  const date = new Date().toISOString().split('T')[0];
+  const date = localDate();
   const loc = qaAns.loc || 'gym';
   let ses = sessions.find(s => s.date===date);
   if (!ses) { ses = {id:Date.now(), date, entries:[]}; sessions.push(ses); }
@@ -2380,7 +2485,7 @@ function savePlanItem(idx) {
 }
 
 function unlogPlanItem(idx) {
-  const date = new Date().toISOString().split('T')[0];
+  const date = localDate();
   const loc = qaAns.loc || 'gym';
   const ses = sessions.find(s => s.date===date);
   if (ses) {
@@ -2567,7 +2672,9 @@ function renderHistory() {
 
 function delSession(id) {
   if (!confirm('Delete this entire session?')) return;
-  sessions = sessions.filter(s => s.id !== id); save(); renderHistory();
+  sessions = sessions.filter(s => s.id !== id);
+  save(); renderHistory();
+  if (document.getElementById('dash-stats-view').style.display !== 'none') renderDashboard();
 }
 
 function editSessionDate(id) {
@@ -2642,7 +2749,7 @@ function showAddPastSession() {
   el.style.display = 'block';
   // Default to yesterday
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-  document.getElementById('past-ses-date').value = yesterday.toISOString().split('T')[0];
+  document.getElementById('past-ses-date').value = localDate(yesterday);
 }
 
 function hideAddPastSession() {
@@ -2693,6 +2800,15 @@ function addExToSession(sessionId) {
   save();
   renderHistory();
 }
+function toggleIndivStreaks() {
+  const list = document.getElementById('indiv-streaks-list');
+  const chev = document.getElementById('indiv-streaks-chev');
+  if (!list) return;
+  const open = list.style.display === 'none' || list.style.display === '';
+  list.style.display = open ? 'flex' : 'none';
+  if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
 function toggleAllPRs() {
   const list = document.getElementById('all-prs-list');
   const chev = document.getElementById('all-prs-chev');
@@ -2705,7 +2821,7 @@ function toggleAllPRs() {
 function renderDashboard() {
   if (fChart) { fChart.destroy(); fChart = null; }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDate();
   const todaySes = sessions.find(s => s.date === today);
   const goalText = loadDailyGoal();
   const goalDone = !!localStorage.getItem(getDailyGoalDoneKey());
@@ -2714,39 +2830,12 @@ function renderDashboard() {
   const dailyChecked = loadDailyChecked();
   const dailyDone = dailyList.length > 0 && dailyList.every(item => dailyChecked.has(item.id));
 
-  // Streak — counts days with logged exercises OR completed Daily Dozen
-  // Build set of all active days
-  const workoutDates = new Set(sessions.map(s => s.date));
-  // Check Daily Dozen completion history — stored as wt-daily-checked-YYYY-MM-DD
-  const activeDates = new Set(workoutDates);
-  // Scan localStorage for daily dozen completions
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('wt-daily-checked-')) {
-      const dateStr = key.replace('wt-daily-checked-', '');
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          const checked = JSON.parse(saved);
-          const list = JSON.parse(localStorage.getItem('wt-daily-list') || '[]');
-          const defaultCount = 12;
-          const totalCount = list.length || defaultCount;
-          if (checked.length >= totalCount) activeDates.add(dateStr);
-        } catch(e) {}
-      }
-    }
-  }
-  const sortedActiveDates = [...activeDates].sort().reverse();
-  let streak = 0;
-  if (sortedActiveDates.length) {
-    let cur = new Date(today + 'T12:00:00');
-    for (const d of sortedActiveDates) {
-      if (d === cur.toISOString().split('T')[0]) { streak++; cur.setDate(cur.getDate()-1); }
-      else if (d < cur.toISOString().split('T')[0]) break;
-    }
-  }
-
-  // PRs
+  // Calculate all streaks
+  const tcStreak = calcStreakFor(getTripleCrownDates());
+  const workoutStreak = calcStreakFor(getWorkoutDates());
+  const dailyStreak = calcStreakFor(getDailyDates());
+  const goalStreak = calcStreakFor(getGoalDates());
+  const streakEmoji = tcStreak>=7?'🔥':tcStreak>=3?'⚡':'👑';
   const prMap = {};
   sessions.forEach(s => s.entries.forEach(e => {
     const wk = e.sets.filter(s2 => s2.type !== 'warmup' && s2.weight >= 5); // min 5 lbs — excludes bodyweight entries
@@ -2766,8 +2855,6 @@ function renderDashboard() {
   const dowLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const enoughDowData = sessions.length >= 4;
 
-  const streakEmoji = streak>=7?'🔥':streak>=3?'⚡':'💪';
-
   document.getElementById('dash-content').innerHTML = `
 
     ${!sessions.length && !goalText ? `
@@ -2777,56 +2864,71 @@ function renderDashboard() {
       <div style="font-size:15px;color:var(--text2);line-height:1.6">Set a goal on the Motivation tab, then use Coach to log your workout. Your progress will appear here.</div>
     </div>` : `
 
-    <!-- STREAK — top of dashboard -->
-    ${streak > 0 ? `<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px;margin-bottom:12px">
-      <div style="font-size:40px;line-height:1">${streakEmoji}</div>
-      <div>
-        <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--accent);line-height:1">${streak}-day streak</div>
-        <div style="font-size:14px;color:var(--text2);margin-top:3px">${streak<3?'Keep going!':streak<7?'Great consistency!':'Unstoppable!'}</div>
-      </div>
-    </div>` : ''}
-
-    <!-- TODAY'S STATUS -->
+    <!-- TRIPLE CROWN STREAK -->
     <div class="card" style="margin-bottom:12px">
-      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:14px;color:var(--text)">Today</div>
-
-      <!-- GOAL STATUS -->
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:26px;line-height:1">${goalDone ? '🏆' : goalText ? '🎯' : '○'}</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+        <div style="font-size:40px;line-height:1">${tcStreak > 0 ? streakEmoji : '👑'}</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px">Goal</div>
-          ${goalText
-            ? `<div style="font-size:15px;color:var(--text)">${goalText}</div>
-               <div style="font-size:12px;color:${goalDone?'#3B6D11':'var(--text3)'};margin-top:2px;font-weight:600">${goalDone?'Goal crushed!':'Not yet completed'}</div>`
-            : `<div style="font-size:14px;color:var(--text3)">No goal set today — <button onclick="showPage('motivation')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:14px;padding:0;text-decoration:underline">set one</button></div>`
-          }
+          <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:2px">Triple Crown Streak</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--accent);line-height:1">${tcStreak > 0 ? tcStreak + ' day' + (tcStreak!==1?'s':'') : 'Not started'}</div>
+          <div style="font-size:13px;color:var(--text2);margin-top:3px">${tcStreak===0?'Complete all 3 every day to start your streak':tcStreak<3?'Keep going — all 3 every day!':tcStreak<7?'Incredible consistency!':'Unstoppable!'}</div>
         </div>
       </div>
 
-      <!-- WORKOUT STATUS -->
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="font-size:26px;line-height:1">${workoutDone ? '⚡' : '○'}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px">Workout</div>
-          ${workoutDone
-            ? `<div style="font-size:15px;color:var(--text)">${todaySes.entries.length} exercise${todaySes.entries.length!==1?'s':''} logged</div>
-               <div style="font-size:12px;color:#3B6D11;margin-top:2px;font-weight:600">Workout complete!</div>`
-            : `<div style="font-size:14px;color:var(--text3)">Not logged yet — <button onclick="showPage('coach')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:14px;padding:0;text-decoration:underline">start workout</button></div>`
-          }
-        </div>
-      </div>
+      <!-- Individual rows — today's status + streak count -->
+      <div style="display:flex;flex-direction:column;gap:8px">
 
-      <!-- DAILY DOZEN STATUS -->
-      <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
-        <div style="font-size:26px;line-height:1">${dailyDone ? '🌅' : '○'}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:2px">Daily Dozen</div>
-          ${dailyDone
-            ? `<div style="font-size:15px;color:var(--text)">All 12 complete</div>
-               <div style="font-size:12px;color:#3B6D11;margin-top:2px;font-weight:600">Daily Dozen Crushed!</div>`
-            : `<div style="font-size:14px;color:var(--text3)">${dailyChecked.size} of ${dailyList.length} done — <button onclick="showPage('daily')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:14px;padding:0;text-decoration:underline">go there</button></div>`
-          }
+        <!-- GOAL -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r)">
+          <div style="font-size:22px;line-height:1">${goalDone ? '🏆' : goalText ? '🎯' : '○'}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">Goal</div>
+            ${goalText
+              ? `<div style="font-size:14px;color:var(--text)">${goalText}</div>
+                 <div style="font-size:12px;color:${goalDone?'#3B6D11':'var(--text3)'};font-weight:500;margin-top:1px">${goalDone?'✓ Crushed!':'Not yet completed'}</div>`
+              : `<div style="font-size:13px;color:var(--text3)">No goal set — <button onclick="showPage('motivation')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;padding:0;text-decoration:underline">set one</button></div>`
+            }
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent);line-height:1">${goalStreak}</div>
+            <div style="font-size:10px;color:var(--text3)">day${goalStreak!==1?'s':''}</div>
+          </div>
         </div>
+
+        <!-- WORKOUT -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r)">
+          <div style="font-size:22px;line-height:1">${workoutDone ? '⚡' : '○'}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">Workout</div>
+            ${workoutDone
+              ? `<div style="font-size:14px;color:var(--text)">${todaySes.entries.length} exercise${todaySes.entries.length!==1?'s':''} logged</div>
+                 <div style="font-size:12px;color:#3B6D11;font-weight:500;margin-top:1px">✓ Done!</div>`
+              : `<div style="font-size:13px;color:var(--text3)">Not logged — <button onclick="showPage('coach')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;padding:0;text-decoration:underline">start workout</button></div>`
+            }
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent);line-height:1">${workoutStreak}</div>
+            <div style="font-size:10px;color:var(--text3)">day${workoutStreak!==1?'s':''}</div>
+          </div>
+        </div>
+
+        <!-- DAILY DOZEN -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r)">
+          <div style="font-size:22px;line-height:1">${dailyDone ? '🌅' : '○'}</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3)">Daily Dozen</div>
+            ${dailyDone
+              ? `<div style="font-size:14px;color:var(--text)">All 12 complete</div>
+                 <div style="font-size:12px;color:#3B6D11;font-weight:500;margin-top:1px">✓ Crushed!</div>`
+              : `<div style="font-size:13px;color:var(--text3)">${dailyChecked.size} of ${dailyList.length} done — <button onclick="showPage('daily')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:13px;padding:0;text-decoration:underline">go there</button></div>`
+            }
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--accent);line-height:1">${dailyStreak}</div>
+            <div style="font-size:10px;color:var(--text3)">day${dailyStreak!==1?'s':''}</div>
+          </div>
+        </div>
+
       </div>
     </div>
 
