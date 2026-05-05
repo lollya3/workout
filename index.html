@@ -263,7 +263,10 @@ input::placeholder{color:var(--text3)}
 
   <!-- TODAY'S SESSION + ADD EXERCISE — combined -->
   <div class="card">
-    <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--text);margin-bottom:4px">Have a great workout!</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleLoggedList()">
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--text)">Have a great workout!</div>
+      <span id="logged-chev" style="font-size:13px;color:var(--text3)">&#9660;</span>
+    </div>
     <div id="today-logged-list"></div>
     <input type="date" id="ses-date" style="display:none">
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
@@ -797,15 +800,22 @@ function saveDailyGoal() {
   if (!val.trim()) return;
   localStorage.setItem(getDailyGoalKey(), val);
   renderGoalReminder();
-  // Show confirmation
-  const msg = document.getElementById('goal-saved-msg');
-  const btn = document.getElementById('set-goal-btn');
-  if (msg) { msg.style.display = 'block'; }
-  if (btn) { btn.textContent = '✓ Goal set!'; btn.style.background = 'var(--accent)'; }
-  setTimeout(() => {
-    if (msg) msg.style.display = 'none';
-    if (btn) btn.textContent = '🎯 Update goal';
-  }, 2500);
+  // Show green "Goal set" view
+  const setView = document.getElementById('goal-set-view');
+  const editView = document.getElementById('goal-edit-view');
+  const setText = document.getElementById('goal-set-text');
+  if (setView) setView.style.display = 'flex';
+  if (editView) editView.style.display = 'none';
+  if (setText) setText.textContent = val;
+}
+
+function showGoalEdit() {
+  const setView = document.getElementById('goal-set-view');
+  const editView = document.getElementById('goal-edit-view');
+  const inp = document.getElementById('daily-goal-input');
+  if (setView) setView.style.display = 'none';
+  if (editView) editView.style.display = 'block';
+  if (inp) inp.value = loadDailyGoal();
 }
 
 function clearDailyGoal() {
@@ -813,12 +823,13 @@ function clearDailyGoal() {
   localStorage.removeItem(getDailyGoalDoneKey());
   const inp = document.getElementById('daily-goal-input');
   if (inp) inp.value = '';
-  const btn = document.getElementById('set-goal-btn');
-  if (btn) btn.textContent = '🎯 Set goal';
-  const msg = document.getElementById('goal-saved-msg');
-  if (msg) msg.style.display = 'none';
+  const setView = document.getElementById('goal-set-view');
+  const editView = document.getElementById('goal-edit-view');
+  if (setView) setView.style.display = 'none';
+  if (editView) editView.style.display = 'block';
   renderGoalReminder();
 }
+
 
 function loadDailyGoal() {
   return localStorage.getItem(getDailyGoalKey()) || '';
@@ -892,10 +903,20 @@ function showPage(p) {
   if (p === 'motivation') {
     renderMotivation();
     setTimeout(() => {
+      const goal = loadDailyGoal();
       const inp = document.getElementById('daily-goal-input');
-      if (inp) inp.value = loadDailyGoal();
-      const btn = document.getElementById('set-goal-btn');
-      if (btn) btn.textContent = loadDailyGoal() ? '🎯 Update goal' : '🎯 Set goal';
+      const setText = document.getElementById('goal-set-text');
+      const setView = document.getElementById('goal-set-view');
+      const editView = document.getElementById('goal-edit-view');
+      if (goal.trim()) {
+        if (inp) inp.value = goal;
+        if (setText) setText.textContent = goal;
+        if (setView) setView.style.display = 'flex';
+        if (editView) editView.style.display = 'none';
+      } else {
+        if (setView) setView.style.display = 'none';
+        if (editView) editView.style.display = 'block';
+      }
     }, 50);
   }
 }
@@ -1047,6 +1068,16 @@ function exCardHTML(e) {
   </div>`;
 }
 
+let loggedListOpen = true;
+
+function toggleLoggedList() {
+  loggedListOpen = !loggedListOpen;
+  const inner = document.getElementById('logged-list-inner');
+  const chev = document.getElementById('logged-chev');
+  if (inner) inner.style.display = loggedListOpen ? 'block' : 'none';
+  if (chev) chev.innerHTML = loggedListOpen ? '&#9650;' : '&#9660;';
+}
+
 function renderTodayCard() {
   const el = document.getElementById('today-logged-list');
   if (!el) return;
@@ -1056,8 +1087,8 @@ function renderTodayCard() {
   const ses = todaySessions[0];
   if (!ses.entries.length) { el.innerHTML = ''; return; }
 
-  el.innerHTML = `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:11px">
-    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Logged today</div>
+  el.innerHTML = `<div id="logged-list-inner" style="margin-top:10px;border-top:1px solid var(--border);padding-top:11px">
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:8px">Logged today (${allEntries.length})</div>
     ${ses.entries.map((e, eIdx) => {
       const wk = e.sets.filter(s2 => s2.type !== 'warmup');
       const wu = e.sets.filter(s2 => s2.type === 'warmup');
@@ -1370,18 +1401,27 @@ function renderMotivation() {
       <div class="motiv-attr" style="color:${q.text_c}">— ${q.attr}</div>
     </div>
 
+
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--text)">&#127919; Today&#39;s goal</div>
         ${localStorage.getItem(getDailyGoalDoneKey()) && loadDailyGoal().trim() ? `<span style="font-size:13px;color:var(--accent);font-weight:600">&#10003; Completed!</span>` : ''}
       </div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">What do you want to accomplish in today&#39;s session?</div>
-      <textarea id="daily-goal-input" placeholder="e.g. Do 3 sets of push-ups with good form, increase my squat weight by 5 lbs..." style="font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;width:100%;outline:none;resize:none;height:90px;line-height:1.5"></textarea>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px">
-        <button class="btn btn-g" id="set-goal-btn" onclick="saveDailyGoal()" style="flex:1">&#127919; Set goal</button>
-        <button class="btn btn-sm" onclick="clearDailyGoal()" style="color:var(--text3);border-color:transparent;background:none;font-size:12px">Clear</button>
+      <div id="goal-set-view" style="display:none;align-items:flex-start;gap:10px;margin-top:6px">
+        <div style="flex:1;background:#f0faf0;border:1px solid #3B6D11;border-radius:var(--r);padding:10px 12px">
+          <div style="font-size:12px;font-weight:700;color:#3B6D11;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">&#10003; Goal set!</div>
+          <div id="goal-set-text" style="font-size:15px;color:var(--text);line-height:1.5"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+          <button onclick="showGoalEdit()" class="btn btn-sm" style="font-size:12px;white-space:nowrap">Update goal</button>
+          <button onclick="clearDailyGoal()" class="btn btn-sm" style="font-size:12px;color:var(--text3);border-color:transparent;background:none">Clear</button>
+        </div>
       </div>
-      <div id="goal-saved-msg" style="font-size:12px;color:var(--accent);margin-top:6px;display:none">&#10003; Goal set — clears at midnight</div>
+      <div id="goal-edit-view" style="margin-top:6px">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px">What do you want to accomplish in today&#39;s session?</div>
+        <textarea id="daily-goal-input" placeholder="e.g. Do 3 sets of push-ups with good form, increase my squat weight by 5 lbs..." style="font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;width:100%;outline:none;resize:none;height:90px;line-height:1.5"></textarea>
+        <button class="btn btn-g" id="set-goal-btn" onclick="saveDailyGoal()" style="width:100%;margin-top:10px">&#127919; Set goal</button>
+      </div>
     </div>
 
     <div class="motiv-tip-card">
@@ -1401,8 +1441,12 @@ const _savedGoal = loadDailyGoal();
 if (_savedGoal) {
   const _inp = document.getElementById('daily-goal-input');
   if (_inp) _inp.value = _savedGoal;
-  const _btn = document.getElementById('set-goal-btn');
-  if (_btn) _btn.textContent = '🎯 Update goal';
+  const _setText = document.getElementById('goal-set-text');
+  if (_setText) _setText.textContent = _savedGoal;
+  const _setView = document.getElementById('goal-set-view');
+  const _editView = document.getElementById('goal-edit-view');
+  if (_setView) _setView.style.display = 'flex';
+  if (_editView) _editView.style.display = 'none';
 }
 renderGoalReminder();
 function getExWeightHistory(exId) {
@@ -2171,27 +2215,47 @@ function toggleLibrary() {
 
 let libExpandId = null;
 
+function getExNotes() {
+  try { return JSON.parse(localStorage.getItem('wt-ex-notes') || '{}'); } catch(e) { return {}; }
+}
+
+function saveExNote(exId, text) {
+  const notes = getExNotes();
+  if (text.trim()) notes[exId] = text.trim();
+  else delete notes[exId];
+  localStorage.setItem('wt-ex-notes', JSON.stringify(notes));
+}
+
 function renderLibrary() {
   const cats = [...new Set(EX.map(e => e.cat))];
+  const notes = getExNotes();
   const el = document.getElementById('library-list');
   el.innerHTML = cats.map(cat => {
     const exes = EX.filter(e => e.cat === cat);
-    return '<div style="margin-bottom:10px">'
-      + '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:5px">' + (CAT[cat]||cat) + '</div>'
+    return '<div style="margin-bottom:14px">'
+      + '<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">' + (CAT[cat]||cat) + '</div>'
       + exes.map(ex => {
           const isExp = libExpandId === ex.id;
-          return '<div style="margin-bottom:3px;border-radius:var(--r);overflow:hidden;background:var(--surface2)">'
-            + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;cursor:pointer" onclick="toggleLibEx(\'' + ex.id + '\')">'
-            + '<div style="font-size:14px;font-weight:500;color:var(--text)">' + ex.name + '</div>'
-            + '<div style="display:flex;align-items:center;gap:8px">'
-            + '<span style="font-size:11px;color:var(--text3)">' + (isExp ? '▲' : '▼') + '</span>'
-            + '<span onclick="event.stopPropagation();selectExAndOpenForm(\'' + ex.id + '\')" style="font-size:18px;color:var(--accent);padding:0 2px">+</span>'
+          const note = notes[ex.id] || '';
+          return '<div style="margin-bottom:4px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 12px;cursor:pointer;background:var(--surface)" onclick="toggleLibEx(\'' + ex.id + '\')">'
+            + '<div>'
+            + '<div style="font-size:16px;font-weight:600;color:var(--text)">' + ex.name + '</div>'
+            + (note ? '<div style="font-size:12px;color:var(--accent);margin-top:2px">📝 ' + note.substring(0,40) + (note.length>40?'…':'') + '</div>' : '')
+            + '</div>'
+            + '<div style="display:flex;align-items:center;gap:10px">'
+            + '<span style="font-size:12px;color:var(--text3)">' + (isExp ? '▲' : '▼') + '</span>'
+            + '<span onclick="event.stopPropagation();selectExAndOpenForm(\'' + ex.id + '\')" style="font-size:22px;color:var(--accent);line-height:1">+</span>'
             + '</div></div>'
-            + (isExp ? '<div style="padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)">'
-              + (ex.svg ? '<div style="margin-bottom:8px">' + ex.svg + '</div>' : '')
-              + (ex.desc ? '<div style="font-size:13px;color:var(--text);margin-bottom:6px;line-height:1.5"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
-              + (ex.targets ? '<div style="font-size:12px;color:var(--text2);margin-bottom:4px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
-              + (ex.tip ? '<div style="font-size:12px;color:var(--accent);background:var(--alight);padding:6px 8px;border-radius:6px;margin-top:4px">💪 ' + ex.tip + '</div>' : '')
+            + (isExp ? '<div style="padding:14px 14px;border-top:1px solid var(--border);background:var(--surface2)">'
+              + (ex.desc ? '<div style="font-size:16px;color:var(--text);margin-bottom:10px;line-height:1.6"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
+              + (ex.targets ? '<div style="font-size:14px;color:var(--text2);margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
+              + (ex.tip ? '<div style="font-size:14px;color:var(--accent);background:var(--alight);padding:10px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5">💪 ' + ex.tip + '</div>' : '')
+              + '<div>'
+              + '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 My notes</div>'
+              + '<textarea id="note-' + ex.id + '" placeholder="e.g. Keep elbows in, relax shoulders, trainer tip..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:80px;line-height:1.5">' + note + '</textarea>'
+              + '<button onclick="saveExNote(\'' + ex.id + '\',document.getElementById(\'note-' + ex.id + '\').value);renderLibrary()" class="btn btn-sm btn-g" style="margin-top:6px">Save note</button>'
+              + '</div>'
               + '</div>' : '')
             + '</div>';
         }).join('')
