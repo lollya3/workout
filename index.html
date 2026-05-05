@@ -2945,7 +2945,7 @@ function renderDashboard() {
         <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
           <div style="font-size:28px;line-height:1">${goalDone ? '🏆' : goalText ? '🎯' : '○'}</div>
           <div style="flex:1">
-            <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:3px">Goal</div>
+            <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Goal</div>
             ${goalText
               ? `<div style="font-size:16px;color:var(--text);line-height:1.4">${goalText}</div>
                  <div style="font-size:14px;color:${goalDone?'#3B6D11':'var(--text3)'};font-weight:600;margin-top:3px">${goalDone?'✓ Crushed!':'Not yet completed'}</div>`
@@ -2962,7 +2962,7 @@ function renderDashboard() {
         <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
           <div style="font-size:28px;line-height:1">${workoutDone ? '⚡' : '○'}</div>
           <div style="flex:1">
-            <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:3px">Workout</div>
+            <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Workout</div>
             ${workoutDone
               ? `<div style="font-size:16px;color:var(--text)">${todaySes.entries.length} exercise${todaySes.entries.length!==1?'s':''} logged</div>
                  <div style="font-size:14px;color:#3B6D11;font-weight:600;margin-top:3px">✓ Done!</div>`
@@ -2979,7 +2979,7 @@ function renderDashboard() {
         <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
           <div style="font-size:28px;line-height:1">${dailyDone ? '🌅' : '○'}</div>
           <div style="flex:1">
-            <div style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:3px">Daily Dozen</div>
+            <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Daily Dozen</div>
             ${dailyDone
               ? `<div style="font-size:16px;color:var(--text)">All 12 complete</div>
                  <div style="font-size:14px;color:#3B6D11;font-weight:600;margin-top:3px">✓ Crushed!</div>`
@@ -3036,8 +3036,8 @@ function renderDashboard() {
     </div>` : `<div class="card" style="margin-bottom:12px;text-align:center;padding:20px;color:var(--text3)">
       <div style="font-size:14px;color:var(--text2);line-height:1.6">No weighted exercises logged yet.<br>When you log exercises with a weight greater than 0, your personal bests will appear here.</div>
     </div>`}
-    <div style="text-align:center;margin-top:8px">
-      <button onclick="showHistory()" class="btn btn-sm" style="color:var(--text3)">&#128203; View workout history</button>
+    <div style="margin-top:12px">
+      <button onclick="showHistory()" class="btn" style="width:100%;font-size:16px;padding:14px;color:var(--text2);border-color:var(--border2)">&#128203; View workout history</button>
     </div>
     `}
   `;
