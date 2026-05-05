@@ -1994,8 +1994,38 @@ function getPlankRecords() {
 }
 function savePlankRecord(secs) {
   const records = getPlankRecords();
-  records.push({date: localDate(), secs});
+  records.push({id: Date.now(), date: localDate(), secs});
   localStorage.setItem('wt-plank-records', JSON.stringify(records));
+}
+function deletePlankRecord(id) {
+  const records = getPlankRecords().filter(r => r.id !== id);
+  localStorage.setItem('wt-plank-records', JSON.stringify(records));
+  renderDashboard();
+}
+function editPlankRecord(id) {
+  const records = getPlankRecords();
+  const rec = records.find(r => r.id === id);
+  if (!rec) return;
+  const el = document.getElementById('plank-rec-' + id);
+  if (!el) return;
+  el.innerHTML = '<div style="display:flex;gap:8px;align-items:center;flex:1">'
+    + '<input type="text" id="plank-edit-' + id + '" value="' + formatPlankTime(rec.secs) + '" style="font-size:14px;padding:6px 10px;width:80px">'
+    + '<button onclick="savePlankEdit(' + id + ')" class="btn btn-sm btn-g">✓</button>'
+    + '<button onclick="renderDashboard()" class="btn btn-sm">✕</button>'
+    + '</div>';
+}
+function savePlankEdit(id) {
+  const val = document.getElementById('plank-edit-' + id)?.value.trim();
+  if (!val) return;
+  let secs = 0;
+  if (val.includes(':')) { const [m,s] = val.split(':').map(Number); secs = m*60+s; }
+  else secs = parseInt(val) || 0;
+  if (!secs) return;
+  const records = getPlankRecords();
+  const rec = records.find(r => r.id === id);
+  if (rec) rec.secs = secs;
+  localStorage.setItem('wt-plank-records', JSON.stringify(records));
+  renderDashboard();
 }
 function getPlankPR() {
   const records = getPlankRecords();
@@ -2025,12 +2055,35 @@ function startPlankTimer() {
 function stopPlankTimer() {
   clearInterval(plankTimerInterval);
   plankTimerRunning = false;
-  if (plankTimerSeconds > 0) {
-    savePlankRecord(plankTimerSeconds);
-    toggleDailyCheck('plank');
-  }
+  const secs = plankTimerSeconds;
   plankTimerSeconds = 0;
   plankTimerInterval = null;
+
+  // Show editable result instead of saving immediately
+  const display = document.getElementById('plank-timer-display');
+  const startBtn = document.getElementById('plank-start-btn');
+  const stopBtn = document.getElementById('plank-stop-btn');
+  if (display) display.textContent = formatPlankTime(secs);
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn) stopBtn.style.display = 'none';
+
+  // Show confirm row with editable time
+  const confirmRow = document.getElementById('plank-confirm-row');
+  const confirmInput = document.getElementById('plank-confirm-input');
+  if (confirmRow) confirmRow.style.display = 'flex';
+  if (confirmInput) confirmInput.value = formatPlankTime(secs);
+}
+
+function confirmPlankSave() {
+  const val = document.getElementById('plank-confirm-input')?.value.trim();
+  if (!val) return;
+  let secs = 0;
+  if (val.includes(':')) { const [m,s] = val.split(':').map(Number); secs = m*60+s; }
+  else secs = parseInt(val) || 0;
+  if (secs > 0) {
+    savePlankRecord(secs);
+    toggleDailyCheck('plank');
+  }
   renderDaily();
 }
 function savePlankManual() {
@@ -2101,7 +2154,16 @@ function renderDaily() {
         + '<div id="plank-timer-display" style="font-family:\'DM Serif Display\',serif;font-size:32px;color:var(--accent);min-width:70px">' + formatPlankTime(plankTimerSeconds) + '</div>'
         + '<div style="display:flex;flex-direction:column;gap:5px">'
         + '<button id="plank-start-btn" onclick="startPlankTimer()" class="btn btn-g btn-sm" style="' + (plankTimerRunning?'display:none':'') + '">▶ Start</button>'
-        + '<button id="plank-stop-btn" onclick="stopPlankTimer()" class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);' + (!plankTimerRunning?'display:none':'') + '">■ Stop &amp; save</button>'
+        + '<button id="plank-stop-btn" onclick="stopPlankTimer()" class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);' + (!plankTimerRunning?'display:none':'') + '">■ Stop</button>'
+        + '</div></div>'
+        + '<div id="plank-confirm-row" style="display:none;gap:8px;align-items:center;margin-bottom:8px;background:var(--alight);border:1px solid var(--accent);border-radius:var(--r);padding:10px">'
+        + '<div style="flex:1">'
+        + '<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:5px">Edit time if needed, then confirm:</div>'
+        + '<input type="text" id="plank-confirm-input" style="font-size:16px;padding:8px 10px;width:100%" placeholder="e.g. 1:00 or 60">'
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'
+        + '<button onclick="confirmPlankSave()" class="btn btn-g btn-sm">✓ Save</button>'
+        + '<button onclick="renderDaily()" class="btn btn-sm" style="color:var(--text3)">Discard</button>'
         + '</div></div>'
         + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
         + '<input type="text" id="plank-manual-input" placeholder="or enter time e.g. 1:30 or 90" style="font-size:14px;padding:7px 10px;flex:1">'
@@ -2996,6 +3058,15 @@ function toggleIndivStreaks() {
   if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
 }
 
+function togglePlankRecords() {
+  const list = document.getElementById('plank-records-list');
+  const chev = document.getElementById('plank-records-chev');
+  if (!list) return;
+  const open = list.style.display === 'none';
+  list.style.display = open ? 'block' : 'none';
+  if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
 function toggleAllPRs() {
   const list = document.getElementById('all-prs-list');
   const chev = document.getElementById('all-prs-chev');
@@ -3238,7 +3309,24 @@ function renderDashboard() {
         + '</div>'
         + '<div style="display:flex;gap:4px">'
         + last7.map(d => '<div style="flex:1;text-align:center;font-size:11px;color:' + (d.date === today ? 'var(--accent)' : 'var(--text3)') + ';font-weight:' + (d.date === today ? '700' : '400') + '">' + d.label + '</div>').join('')
+        // Records list
+        + '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px">'
+        + '<div onclick="togglePlankRecords()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">'
+        + '<div style="font-size:14px;font-weight:600;color:var(--text2)">All records (' + records.length + ')</div>'
+        + '<span id="plank-records-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>'
         + '</div>'
+        + '<div id="plank-records-list" style="display:none;margin-top:10px">'
+        + [...records].reverse().map(r => {
+            const rid = r.id || r.date + r.secs;
+            return '<div id="plank-rec-' + rid + '" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">'
+              + '<div><div style="font-size:15px;font-weight:600;color:var(--text)">' + formatPlankTime(r.secs) + '</div>'
+              + '<div style="font-size:12px;color:var(--text3)">' + new Date(r.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}) + '</div></div>'
+              + '<div style="display:flex;gap:6px">'
+              + '<button onclick="editPlankRecord(' + rid + ')" class="btn btn-sm" style="font-size:12px">Edit</button>'
+              + '<button onclick="deletePlankRecord(' + rid + ')" class="btn btn-sm" style="font-size:12px;color:var(--danger);border-color:var(--danger)">Delete</button>'
+              + '</div></div>';
+          }).join('')
+        + '</div></div>'
         + '</div>';
     })()}
 
