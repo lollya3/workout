@@ -1935,13 +1935,13 @@ function tipFor(id, goal) {
 
 // ── DAILY DOZEN ────────────────────────────────────────────
 const DAILY_DEFAULT = [
+  {id:'plank',            dur:'30 sec'},
   {id:'single_leg_stand', dur:'30 sec each side'},
   {id:'dead_bug',         dur:'10 reps'},
   {id:'birddog',          dur:'10 reps each side'},
   {id:'cat_cow',          dur:'10 reps'},
   {id:'glute_bridge',     dur:'15 reps'},
   {id:'hip_circle',       dur:'10 each direction'},
-  {id:'plank',            dur:'30 sec'},
   {id:'shoulder_rolls',   dur:'10 forward, 10 back'},
   {id:'calf_raise',        dur:'15 reps'},
   {id:'hip_flexor_stretch',dur:'30 sec each side'},
@@ -1958,7 +1958,15 @@ function getDailyKey(suffix) {
 
 function loadDailyList() {
   const saved = localStorage.getItem(getDailyKey('list'));
-  return saved ? JSON.parse(saved) : DAILY_DEFAULT.map(e => ({...e}));
+  const list = saved ? JSON.parse(saved) : DAILY_DEFAULT.map(e => ({...e}));
+  // Ensure plank is always first
+  const plankIdx = list.findIndex(e => e.id === 'plank');
+  if (plankIdx > 0) {
+    const plank = list.splice(plankIdx, 1)[0];
+    list.unshift(plank);
+    saveDailyList(list);
+  }
+  return list;
 }
 
 function saveDailyList(list) {
@@ -1976,11 +1984,87 @@ function saveDailyChecked(checked) {
 
 let dailySwapIdx = null;
 
+// ── PLANK-O-METER ──────────────────────────────────────────
+let plankTimerInterval = null;
+let plankTimerSeconds = 0;
+let plankTimerRunning = false;
+
+function getPlankRecords() {
+  try { return JSON.parse(localStorage.getItem('wt-plank-records') || '[]'); } catch(e) { return []; }
+}
+function savePlankRecord(secs) {
+  const records = getPlankRecords();
+  records.push({date: localDate(), secs});
+  localStorage.setItem('wt-plank-records', JSON.stringify(records));
+}
+function getPlankPR() {
+  const records = getPlankRecords();
+  return records.length ? Math.max(...records.map(r => r.secs)) : 0;
+}
+function getPlankLast() {
+  const records = getPlankRecords();
+  if (!records.length) return null;
+  const today = localDate();
+  const past = records.filter(r => r.date < today);
+  return past.length ? past[past.length-1] : null;
+}
+function formatPlankTime(s) {
+  return s >= 60 ? Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') : s + 's';
+}
+function startPlankTimer() {
+  if (plankTimerRunning) return;
+  plankTimerRunning = true;
+  plankTimerInterval = setInterval(() => {
+    plankTimerSeconds++;
+    const el = document.getElementById('plank-timer-display');
+    if (el) el.textContent = formatPlankTime(plankTimerSeconds);
+  }, 1000);
+  document.getElementById('plank-start-btn').style.display = 'none';
+  document.getElementById('plank-stop-btn').style.display = 'inline-block';
+}
+function stopPlankTimer() {
+  clearInterval(plankTimerInterval);
+  plankTimerRunning = false;
+  if (plankTimerSeconds > 0) {
+    savePlankRecord(plankTimerSeconds);
+    toggleDailyCheck('plank');
+  }
+  plankTimerSeconds = 0;
+  plankTimerInterval = null;
+  renderDaily();
+}
+function savePlankManual() {
+  const inp = document.getElementById('plank-manual-input');
+  if (!inp) return;
+  const val = inp.value.trim();
+  let secs = 0;
+  if (val.includes(':')) {
+    const [m, s] = val.split(':').map(Number);
+    secs = m*60 + s;
+  } else {
+    secs = parseInt(val) || 0;
+  }
+  if (secs > 0) {
+    savePlankRecord(secs);
+    toggleDailyCheck('plank');
+  }
+}
+
+// ── DAILY DOZEN EDIT MODE ──────────────────────────────────
+let dailyEditMode = false;
+
+function toggleDailyEditMode() {
+  dailyEditMode = !dailyEditMode;
+  renderDaily();
+}
+
 function renderDaily() {
   const list = loadDailyList();
   const checked = loadDailyChecked();
   const doneCount = list.filter(item => checked.has(item.id)).length;
   const allDone = doneCount === list.length;
+  const pr = getPlankPR();
+  const last = getPlankLast();
 
   const celebrationHTML = allDone
     ? '<div id="fw-banner" style="background:linear-gradient(135deg,#1a0533,#2d0a5e,#1a0533);border-radius:12px;padding:20px 15px;margin-bottom:14px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3);position:relative;overflow:hidden"><canvas id="fireworks-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas><div style="position:relative;z-index:1"><div style="font-family:DM Sans,sans-serif;font-size:26px;font-weight:800;color:#fff;letter-spacing:-.01em;text-transform:uppercase;margin-bottom:4px">Daily Dozen Crushed!</div><div style="font-size:13px;color:rgba(255,255,255,.7);font-weight:500;letter-spacing:.05em;text-transform:uppercase">&#128081; All 12 complete &#128081;</div></div></div>'
@@ -1990,50 +2074,90 @@ function renderDaily() {
   const counterColor = allDone ? '#fff' : 'var(--accent)';
   const counterSub = allDone ? 'rgba(255,255,255,.8)' : 'var(--text3)';
 
+  const swapOptions = EX.filter(function(e) { return ['balance','mobility','core','legs','glutes'].includes(e.cat); })
+    .map(function(e) { return '<option value="' + e.id + '">' + e.name + ' (' + (CAT[e.cat]||e.cat) + ')</option>'; }).join('');
+
   const itemsHTML = list.map(function(item, idx) {
     const ex = EX.find(function(e) { return e.id === item.id; });
     if (!ex) return '';
     const done = checked.has(item.id);
     const bg = done ? '#f0faf0' : 'var(--surface)';
     const border = done ? '2px solid #3B6D11' : '1px solid var(--border)';
-    const nameColor = done ? '#2a7a2a' : 'var(--text)';
-    const badge = done ? '<span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#2a7a2a;border:1px solid #2a7a2a;border-radius:20px;padding:1px 7px">COMPLETED</span>' : '';
+    const nameColor = done ? '#2a7a2a' : '#111';
+    const badge = done ? '<span style="font-size:11px;font-weight:700;letter-spacing:.08em;color:#2a7a2a;border:1px solid #2a7a2a;border-radius:20px;padding:2px 8px">COMPLETED</span>' : '';
+
+    // Special Plank-o-Meter card
+    if (item.id === 'plank' && !dailyEditMode) {
+      const todayRecords = getPlankRecords().filter(r => r.date === localDate());
+      const todayBest = todayRecords.length ? Math.max(...todayRecords.map(r => r.secs)) : 0;
+      return '<div style="background:' + (done?'#f0faf0':'var(--surface)') + ';border:' + border + ';border-radius:12px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'
+        + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
+        + '<input type="checkbox" ' + (done?'checked':'') + ' onchange="toggleDailyCheck(\'plank\')" style="width:24px;height:24px;cursor:pointer;accent-color:#5a9e5a;flex-shrink:0">'
+        + '<div style="flex:1">'
+        + '<div style="font-size:16px;font-weight:700;color:' + nameColor + '">🏆 Plank-o-Meter</div>'
+        + (done && todayBest ? '<div style="font-size:14px;color:#2a7a2a;font-weight:600">Today: ' + formatPlankTime(todayBest) + ' ' + badge + '</div>' : '')
+        + '</div></div>'
+        + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+        + '<div id="plank-timer-display" style="font-family:\'DM Serif Display\',serif;font-size:32px;color:var(--accent);min-width:70px">' + formatPlankTime(plankTimerSeconds) + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:5px">'
+        + '<button id="plank-start-btn" onclick="startPlankTimer()" class="btn btn-g btn-sm" style="' + (plankTimerRunning?'display:none':'') + '">▶ Start</button>'
+        + '<button id="plank-stop-btn" onclick="stopPlankTimer()" class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);' + (!plankTimerRunning?'display:none':'') + '">■ Stop &amp; save</button>'
+        + '</div></div>'
+        + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+        + '<input type="text" id="plank-manual-input" placeholder="or enter time e.g. 1:30 or 90" style="font-size:14px;padding:7px 10px;flex:1">'
+        + '<button onclick="savePlankManual()" class="btn btn-sm btn-g">Save</button>'
+        + '</div>'
+        + (pr > 0 ? '<div style="font-size:13px;color:var(--text2)">PR: <strong style="color:var(--gold)">' + formatPlankTime(pr) + '</strong>' + (last?' · Last: ' + formatPlankTime(last.secs):'') + '</div>' : '')
+        + '</div>';
+    }
+
+    // Regular exercise card
+    if (dailyEditMode) {
+      return '<div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px">'
+        + '<div style="flex:1">'
+        + '<div style="font-size:15px;font-weight:600;color:#111;margin-bottom:6px">' + ex.name + '</div>'
+        + '<input type="text" id="dur-' + idx + '" value="' + item.dur + '" style="font-size:14px;padding:6px 10px;width:100%;margin-bottom:6px" placeholder="Duration e.g. 30 sec">'
+        + '<select id="swap-' + idx + '" style="font-size:14px;width:100%">' + swapOptions.replace('value="' + item.id + '"', 'value="' + item.id + '" selected') + '</select>'
+        + '</div>'
+        + '<button onclick="applyEditItem(' + idx + ')" class="btn btn-g btn-sm" style="flex-shrink:0">✓</button>'
+        + '</div>';
+    }
+
     return '<div style="background:' + bg + ';border:' + border + ';border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.06)">'
       + '<input type="checkbox" ' + (done ? 'checked' : '') + ' onchange="toggleDailyCheck(\'' + item.id + '\')" style="width:24px;height:24px;cursor:pointer;accent-color:#5a9e5a;flex-shrink:0">'
       + '<div style="flex:1;min-width:0">'
       + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-      + '<div style="font-size:15px;font-weight:600;color:' + nameColor + '">' + ex.name + '</div>' + badge
+      + '<div style="font-size:16px;font-weight:600;color:' + nameColor + '">' + ex.name + '</div>' + badge
       + '</div>'
-      + '<div style="font-size:13px;color:var(--text2);margin-top:1px">' + item.dur + '</div>'
+      + '<div style="font-size:14px;color:#333;margin-top:2px">' + item.dur + '</div>'
       + '</div>'
-      + '<button onclick="openDailySwap(' + idx + ')" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3);padding:4px;flex-shrink:0">&#8635;</button>'
       + '</div>';
   }).join('');
-
-  const swapOptions = EX.filter(function(e) { return ['balance','mobility','core'].includes(e.cat); })
-    .map(function(e) { return '<option value="' + e.id + '">' + e.name + ' (' + (CAT[e.cat]||e.cat) + ')</option>'; }).join('');
 
   document.getElementById('daily-content').innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     + '<div><div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:var(--text)">Daily Dozen</div>'
-    + '<div style="font-size:13px;color:var(--text2);margin-top:2px">Do these every day — safe for daily practice</div></div>'
+    + '<div style="font-size:14px;color:#333;margin-top:2px">Do these every day</div></div>'
+    + '<div style="display:flex;align-items:center;gap:10px">'
+    + '<button onclick="toggleDailyEditMode()" class="btn btn-sm" style="' + (dailyEditMode?'background:var(--accent);color:#fff;border-color:var(--accent)':'') + '">' + (dailyEditMode?'✓ Done':'✏️ Edit') + '</button>'
     + '<div style="text-align:center;background:' + counterBg + ';border-radius:50%;width:52px;height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">'
     + '<div style="font-family:\'DM Serif Display\',serif;font-size:18px;color:' + counterColor + ';line-height:1">' + doneCount + '</div>'
     + '<div style="font-size:10px;color:' + counterSub + ';font-weight:600">/ ' + list.length + '</div>'
-    + '</div></div>'
+    + '</div></div></div>'
     + celebrationHTML
     + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">' + itemsHTML + '</div>'
-    + '<div style="display:flex;gap:8px">'
-    + '<button class="btn btn-sm" onclick="resetDailyChecks()" style="color:var(--text3)">&#8635; Reset checks</button>'
-    + '</div>'
-    + '<div id="daily-swap-panel" style="display:none;margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px">'
-    + '<div style="font-family:\'DM Serif Display\',serif;font-size:16px;margin-bottom:12px">Swap exercise</div>'
-    + '<div style="margin-bottom:10px"><span class="lbl">Choose replacement</span><select id="daily-swap-select" style="font-size:15px">' + swapOptions + '</select></div>'
-    + '<div style="margin-bottom:10px"><span class="lbl">Duration / reps</span><input type="text" id="daily-swap-dur" placeholder="e.g. 30 sec each side" style="font-size:15px"></div>'
-    + '<div style="display:flex;gap:8px"><button class="btn btn-g btn-sm" onclick="confirmDailySwap()">&#10003; Swap</button>'
-    + '<button class="btn btn-sm" onclick="closeDailySwap()">Cancel</button></div></div>';
+    + (!dailyEditMode ? '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="resetDailyChecks()" style="color:var(--text3)">&#8635; Reset checks</button></div>' : '');
 
   if (allDone) setTimeout(launchFireworks, 50);
+}
+
+function applyEditItem(idx) {
+  const list = loadDailyList();
+  const newId = document.getElementById('swap-' + idx)?.value;
+  const newDur = document.getElementById('dur-' + idx)?.value.trim() || list[idx].dur;
+  if (newId) list[idx] = {id: newId, dur: newDur};
+  saveDailyList(list);
+  renderDaily();
 }
 
 function launchFireworks() {
