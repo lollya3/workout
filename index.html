@@ -260,84 +260,51 @@ input::placeholder{color:var(--text3)}
 <!-- COACH -->
 <div class="page" id="page-coach">
   <div id="goal-reminder"></div>
+  <input type="date" id="ses-date" style="display:none">
 
-  <!-- TODAY'S SESSION + ADD EXERCISE — combined -->
-  <div class="card">
+  <!-- TODAY'S SESSION -->
+  <div class="card" id="coach-session-card">
     <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleLoggedList()">
       <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--text)">Have a great workout!</div>
       <span id="logged-chev" style="font-size:13px;color:var(--text3)">&#9660;</span>
     </div>
     <div id="today-logged-list"></div>
-    <input type="date" id="ses-date" style="display:none">
-    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleExercisesPanel()">
-        <div style="font-size:15px;font-weight:600;color:var(--accent)">&#43; Add exercise</div>
-        <span id="ex-panel-chev" style="font-size:13px;color:var(--text3)">&#9660;</span>
-      </div>
-      <div id="ex-panel" style="margin-top:12px;display:none">
-        <input type="text" id="ex-search" placeholder="Type an exercise e.g. push, cable row, squat..." oninput="smartExSearch()" style="font-size:15px;padding:10px 12px;width:100%;margin-bottom:10px">
-        <div id="smart-search-results"></div>
-        <div style="margin-top:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:8px 0;border-top:1px solid var(--border)" onclick="toggleLibrary()">
-            <div style="font-size:13px;font-weight:600;color:var(--text2)">&#128218; Exercise library</div>
-            <span id="library-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>
-          </div>
-          <div id="library-list" style="display:none;margin-top:8px"></div>
-        </div>
-      </div>
-    </div>
   </div>
 
-  <!-- COACH SUGGESTION -->
-  <div class="card" id="suggest-card">
-    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleSuggestPanel()">
-      <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--text)">&#10024; Coach suggestion</div>
-      <span id="suggest-chev" style="font-size:13px;color:var(--text3)">&#9650;</span>
+  <!-- MAIN SEARCH + LOG FLOW -->
+  <div class="card">
+
+    <!-- Always-visible search bar -->
+    <div style="margin-bottom:10px">
+      <input type="text" id="ex-search" placeholder="Search or add an exercise..." oninput="smartExSearch()" style="font-size:16px;padding:12px 14px;width:100%;border-radius:var(--r);border:2px solid var(--accent);background:var(--surface);color:var(--text)">
     </div>
-    <div id="suggest-panel">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;margin-top:4px">Based on what you&#39;ve trained recently</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+
+    <!-- Search results / log form -->
+    <div id="smart-search-results"></div>
+
+    <!-- Suggest button — shown when search is empty -->
+    <div id="suggest-area">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
         <select id="ses-loc" onchange="syncLoc()" style="font-size:14px;flex:1">
-          <option value="all">🌐 All locations</option>
+          <option value="all">🌐 All</option>
           <option value="gym">🏋️ Gym</option>
           <option value="home">🏠 Home</option>
-          <option value="travel">✈️ Traveling</option>
+          <option value="travel">✈️ Travel</option>
         </select>
-        <button class="btn btn-g" onclick="getSuggestions()" style="flex:2;font-size:15px;padding:10px">Suggest my workout</button>
+        <button class="btn btn-g" onclick="getSuggestions()" style="flex:2;font-size:15px;padding:10px">✨ Suggest my workout</button>
       </div>
       <div id="suggestions-list"></div>
-    </div>
-  </div>
 
-  <!-- LOG FORM -->
-  <div class="card" id="log-form" style="display:none">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div class="ctitle" style="margin-bottom:0" id="lf-title"></div>
-      <button onclick="closeLogForm()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3);line-height:1">&#x2715;</button>
-    </div>
-    <div class="stype-row">
-      <button class="stype on" id="btn-wk" onclick="setSType('working')">Working set</button>
-      <button class="stype" id="btn-wu" onclick="setSType('warmup')">Warm-up set</button>
-    </div>
-    <div class="sf-row">
-      <div><span class="lbl">Sets</span><input type="number" id="inp-sets" min="1" value="3"></div>
-      <div><span class="lbl">Reps</span><input type="number" id="inp-reps" min="1" value="10"></div>
-      <div><span class="lbl">Weight (lbs)</span><input type="number" id="inp-weight" min="0" placeholder="0 = bodyweight only"></div>
-      <div style="padding-top:16px"><button class="btn" onclick="addSet()">+ Add</button></div>
-    </div>
-    <div id="hand-toggle" style="display:none;margin-bottom:8px">
-      <span class="lbl" style="margin-bottom:5px;display:block">Weight counting</span>
-      <div style="display:flex;gap:6px">
-        <button class="stype on" id="btn-each" onclick="setHandMode('each')">Each hand</button>
-        <button class="stype" id="btn-total" onclick="setHandMode('total')">Total weight</button>
+      <!-- Exercise library — collapsed by default -->
+      <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleLibrary()">
+          <div style="font-size:14px;font-weight:600;color:var(--text2)">&#128218; Exercise library</div>
+          <span id="library-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>
+        </div>
+        <div id="library-list" style="display:none;margin-top:8px"></div>
       </div>
-      <div id="weight-hint" style="font-size:11px;color:var(--text3);margin-top:4px"></div>
     </div>
-    <div class="set-list" id="set-list"></div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <button class="btn btn-g" onclick="saveSession()">Save &amp; log</button>
-      <span style="font-size:12px;color:var(--accent);font-weight:500" id="save-status"></span>
-    </div>
+
   </div>
 </div>
 
@@ -399,7 +366,7 @@ input::placeholder{color:var(--text3)}
 // ── EXERCISE DATA ──────────────────────────────────────────
 const CAT = {
   chest:'Chest', back:'Back', shoulders:'Shoulders', arms:'Arms',
-  legs:'Legs', glutes:'Glutes', core:'Core', balance:'Balance', mobility:'Warm-up & Mobility'
+  legs:'Legs', glutes:'Glutes', core:'Core', balance:'Balance', mobility:'Warm-up & Mobility', yoga:'Yoga'
 };
 const LOC = {gym:'Gym', home:'Home', travel:'Traveling'};
 const CATS = Object.keys(CAT);
@@ -510,6 +477,10 @@ const EX = [
  desc:'Lie on bench, hold EZ-bar above chest, bend elbows lowering weight to forehead, press back up.',
  targets:'Triceps (all three heads)',
  svg: svg(`<rect x="4" y="44" width="102" height="5" rx="2" fill="#AFA9EC"/>${head(30,31)}${bar(30,40,55,44)}${bar(55,44,80,44)}${bar(40,35,52,25)}${bar(52,25,58,15)}<rect x="52" y="9" width="24" height="5" rx="2" fill="#534AB7"/>${wt2(48,7,7,9)}${wt2(74,7,7,9)}`)},
+{id:'tricep_kickback',name:'Tricep kickback',cat:'arms',loc:['gym','home'],
+ tip:'Keep upper arm parallel to floor throughout. Squeeze hard at full extension — that\'s where the muscle works most.',
+ desc:'Hinge forward at hips with a dumbbell in each hand. Pin upper arms to sides and extend forearms back until arms are straight, then lower.',
+ targets:'Triceps (lateral and long head)'},
 {id:'band_curl',name:'Band curl',cat:'arms',loc:['home','travel'],
  tip:'Stand on band hip-width. Keep elbows at sides — don\'t pull with shoulders.',
  desc:'Stand on resistance band and curl both handles upward squeezing at top.',
@@ -674,6 +645,67 @@ const EX = [
  desc:'Stand sideways to wall for support. Swing one leg forward and back 10–15 reps, then side-to-side. Switch legs.',
  targets:'Hip flexors, glutes, hip joint mobility',
  svg: svg(`<rect x="95" y="3" width="6" height="52" rx="2" fill="#AFA9EC"/>${head(60,11)}${bar(60,19,60,35)}${bar(60,27,73,31)}<line x1="60" y1="35" x2="44" y2="49" stroke="#888780" stroke-width="2" stroke-dasharray="3,2"/>${bar(60,35,76,25)}`)},
+// YOGA
+{id:'yoga_downdog',name:'Downward facing dog',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Press your heels toward the floor — they don\'t need to touch. Spread fingers wide and push the floor away.',
+ desc:'Start on hands and knees, tuck toes, lift hips up and back forming an inverted V. Straighten legs as much as comfortable, press chest toward thighs. Hold 5–10 breaths.',
+ targets:'Hamstrings, calves, spine, shoulders, chest'},
+{id:'yoga_warrior1',name:'Warrior I',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Square your hips to the front as much as possible. Back foot at 45 degrees, not 90.',
+ desc:'Step one foot forward into a lunge, back heel down at 45 degrees. Bend front knee to 90 degrees, raise both arms overhead, palms facing. Hold 5 breaths each side.',
+ targets:'Hip flexors, quads, core, shoulders'},
+{id:'yoga_warrior2',name:'Warrior II',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Front knee tracks over front ankle — don\'t let it cave inward. Gaze over front fingers.',
+ desc:'Wide stance, front foot forward, back foot parallel to mat. Bend front knee to 90 degrees, extend arms out to sides at shoulder height. Hold 5 breaths each side.',
+ targets:'Quads, hip abductors, core, shoulders'},
+{id:'yoga_warrior3',name:'Warrior III',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Keep hips level — the tendency is to open the lifted hip. Start with hands on hips to check alignment.',
+ desc:'From standing, hinge forward at hip while lifting one leg behind until body and leg are parallel to floor. Arms extended forward or out to sides. Hold 3–5 breaths each side.',
+ targets:'Glutes, hamstrings, core, balance'},
+{id:'yoga_tree',name:'Tree pose',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Gaze at a fixed point — it makes balance dramatically easier. Don\'t press foot against the knee joint.',
+ desc:'Stand on one leg, place foot on inner calf or inner thigh (not knee). Bring hands to heart or raise overhead. Hold 5–10 breaths each side.',
+ targets:'Balance, ankles, core, hip abductors'},
+{id:'yoga_triangle',name:'Triangle pose',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Think lengthening more than deepening — reach forward before you reach down.',
+ desc:'Wide stance, front foot forward. Reach forward arm toward front foot, rest on shin or floor. Top arm reaches toward ceiling. Hold 5 breaths each side.',
+ targets:'Hamstrings, IT band, obliques, spine'},
+{id:'yoga_pigeon',name:'Pigeon pose',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Use a block or folded blanket under your hip if it doesn\'t reach the floor. Never force this — the hip opener comes with time.',
+ desc:'From downward dog, bring one knee forward behind the wrist, shin angled across the mat. Extend back leg long. Fold forward over front shin. Hold 10+ breaths each side.',
+ targets:'Hip flexors, piriformis, glutes, IT band'},
+{id:'yoga_bridge',name:'Bridge pose',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Press through all four corners of both feet equally. Squeeze glutes at the top.',
+ desc:'Lie on back, knees bent, feet hip-width flat on floor. Press feet down, lift hips toward ceiling. Clasp hands under back and press arms into mat. Hold 5–10 breaths.',
+ targets:'Glutes, hamstrings, spine, chest'},
+{id:'yoga_cobra',name:'Cobra pose',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Don\'t jam into the lower back. Keep elbows slightly bent and shoulders away from ears.',
+ desc:'Lie face down, hands under shoulders. Press through hands to lift chest, elbows soft. Keep hips and thighs on the mat. Hold 5 breaths.',
+ targets:'Spine extensors, chest, shoulders, core'},
+{id:'yoga_seated_forward',name:'Seated forward fold',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Hinge from the hips, not the waist. A straight-backed lean forward is more beneficial than a rounded deep fold.',
+ desc:'Sit with legs extended. Inhale to lengthen spine, exhale to fold forward over legs. Reach for feet or shins. Hold 10+ breaths.',
+ targets:'Hamstrings, calves, lower back, spine'},
+{id:'yoga_supine_twist',name:'Supine spinal twist',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Keep both shoulders on the floor — that\'s more important than how far the knee drops.',
+ desc:'Lie on back, bring one knee to chest, guide it across the body to the opposite side. Extend that arm out, gaze the other way. Hold 10 breaths each side.',
+ targets:'Spine, IT band, outer hip, chest'},
+{id:'yoga_legs_up_wall',name:'Legs up the wall',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Great recovery pose after leg day. Stay 5–10 minutes for full benefit.',
+ desc:'Sit sideways next to a wall, swing legs up as you lie back. Rest with legs vertical against wall, arms out to sides. Hold 5–10 minutes.',
+ targets:'Hamstrings, lower back, nervous system recovery'},
+{id:'yoga_savasana',name:'Savasana (corpse pose)',cat:'yoga',loc:['gym','home','travel'],
+ tip:'This is not sleeping — it\'s conscious relaxation. Let each body part fully release into the floor.',
+ desc:'Lie flat on back, feet slightly wider than hips, arms alongside body palms up. Close eyes, breathe naturally, let body completely relax. Hold 5–10 minutes.',
+ targets:'Full body recovery, nervous system, mental reset'},
+{id:'yoga_cat_cow',name:'Cat / Cow flow',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Move with your breath — inhale into cow, exhale into cat. Let the breath lead the movement.',
+ desc:'On hands and knees, alternate between arching back up (cat) on exhale and letting belly drop (cow) on inhale. Flow for 10+ rounds.',
+ targets:'Spine mobility, core, hip flexors'},
+{id:'yoga_sun_a',name:'Sun salutation A',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Move through each position with intention — don\'t rush. 3–5 rounds is a complete warm-up.',
+ desc:'Flow: Mountain → forward fold → halfway lift → plank → chaturanga → upward dog → downward dog → forward fold → mountain. Each movement matches a breath.',
+ targets:'Full body warm-up, spine, hips, shoulders, strength'},
 ];
 
 // ── STATE ──────────────────────────────────────────────────
@@ -702,7 +734,7 @@ const BODYWEIGHT = new Set([
 const BILATERAL = new Set([
   'db_lateral','bicep_curl','db_shoulder_press','rdl','band_rdl',
   'db_lunge','goblet_squat','band_curl','band_lateral','incline_ball',
-  'tricep_dip','row_db','dead_bug'
+  'tricep_dip','row_db','dead_bug','tricep_kickback'
 ]);
 let locF = 'gym', catF = 'all';
 let fChart = null;
@@ -1705,6 +1737,10 @@ function selectSuggestion(id) {
     + weightRow
     + handToggle
     + '</div>'
+    + '<div style="margin-bottom:10px">'
+    + '<span class="lbl">📝 My notes</span>'
+    + '<textarea id="sg-note" placeholder="e.g. Keep elbows in, relax shoulders..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:70px;line-height:1.5">' + note + '</textarea>'
+    + '</div>'
     + '<button class="btn btn-g" onclick="saveSuggestion(\'' + id + '\')" style="width:100%;font-size:15px;padding:10px">Save &amp; log</button>'
     + '</div>';
 }
@@ -1747,12 +1783,13 @@ function saveSuggestion(exId) {
   save();
   favorites.add(exId);
   saveFavorites();
+  const noteVal = document.getElementById('sg-note')?.value.trim();
+  if (noteVal !== undefined) saveExNote(exId, noteVal);
   const el = document.getElementById('suggestions-list');
   el.innerHTML = '<div style="color:var(--accent);font-weight:600;font-size:14px;padding:8px 0">✓ ' + ex.name + ' logged!</div>';
-  setTimeout(() => {
-    getSuggestions();
-    if (suggestPanelOpen) toggleSuggestPanel();
-  }, 1500);
+  setTimeout(() => getSuggestions(), 1500);
+  const suggestArea = document.getElementById('suggest-area');
+  if (suggestArea) suggestArea.style.display = 'block';
   renderTodayCard();
 }
 
@@ -1791,7 +1828,7 @@ function selectExAndOpenForm(id) {
   el.innerHTML = '<div style="background:var(--alight);border:1px solid var(--accent);border-radius:var(--r);padding:12px 14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     + '<div style="font-size:15px;font-weight:700;color:var(--text)">' + ex.name + '</div>'
-    + '<button onclick="document.getElementById(\'smart-search-results\').innerHTML=\'\'" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3)">&#x2715;</button>'
+    + '<button onclick="document.getElementById(\'smart-search-results\').innerHTML=\'\';document.getElementById(\'suggest-area\').style.display=\'block\'" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3)">&#x2715;</button>'
     + '</div>'
     + infoSection
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
@@ -1799,6 +1836,10 @@ function selectExAndOpenForm(id) {
     + '<div><span class="lbl">Reps</span><input type="number" id="il-reps" min="1" value="10" style="font-size:15px;padding:8px 10px"></div>'
     + weightRow
     + handToggle
+    + '</div>'
+    + '<div style="margin-bottom:10px">'
+    + '<span class="lbl">📝 My notes</span>'
+    + '<textarea id="il-note" placeholder="e.g. Keep elbows in, relax shoulders, trainer tip..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:70px;line-height:1.5">' + note + '</textarea>'
     + '</div>'
     + '<button class="btn btn-g" onclick="saveInlineSet(\'' + id + '\')" style="width:100%;font-size:15px;padding:10px">Save &amp; log</button>'
     + '</div>';
@@ -1842,8 +1883,9 @@ function saveInlineSet(exId) {
   save();
   favorites.add(exId);
   saveFavorites();
-  document.getElementById('ex-search').value = '';
-  document.getElementById('smart-search-results').innerHTML =
+  // Save note if entered
+  const noteVal = document.getElementById('il-note')?.value.trim();
+  if (noteVal !== undefined) saveExNote(exId, noteVal);
     '<div style="color:var(--accent);font-weight:600;font-size:14px;padding:8px 0">✓ ' + ex.name + ' logged!</div>';
   setTimeout(() => {
     const el = document.getElementById('smart-search-results');
@@ -2257,39 +2299,160 @@ function applyEditItem(idx) {
 }
 
 function launchFireworks() {
-  const canvas = document.getElementById('fireworks-canvas');
-  if (!canvas) return;
+  const existing = document.getElementById('fw-fullscreen');
+  if (existing) existing.remove();
+
+  // Fullscreen overlay with light purple background
+  const overlay = document.createElement('div');
+  overlay.id = 'fw-fullscreen';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;background:rgba(83,74,183,0.18);transition:opacity 1s';
+  document.body.appendChild(overlay);
+
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
+  overlay.appendChild(canvas);
+
   const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || 300;
-  const H = canvas.offsetHeight || 120;
-  canvas.width = W; canvas.height = H;
-  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f43','#fff'];
-  const particles = [];
-  function burst(x, y) {
-    for (let i = 0; i < 32; i++) {
-      const angle = (Math.PI * 2 / 32) * i;
-      const speed = 1.5 + Math.random() * 2.5;
-      particles.push({x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
-        alpha: 1, color: colors[Math.floor(Math.random()*colors.length)], size: 2 + Math.random()*2});
-    }
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const W = canvas.width, H = canvas.height;
+
+  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff','#ff9f43','#fff','#ff6eb4','#00e5ff','#ffb347'];
+
+  const rockets = [];
+  const explosions = [];
+
+  function launchRocket() {
+    const x = W * (0.15 + Math.random() * 0.7);
+    rockets.push({
+      x, y: H,
+      vy: -(8 + Math.random() * 6),
+      targetY: H * (0.1 + Math.random() * 0.5),
+      color: colors[Math.floor(Math.random() * colors.length)],
+      trail: []
+    });
   }
+
+  function explode(x, y, color) {
+    const count = 60 + Math.floor(Math.random() * 30);
+    const streaks = [];
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 / count) * i;
+      const speed = 2.5 + Math.random() * 4;
+      streaks.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        alpha: 1,
+        length: 6 + Math.random() * 8,
+        color,
+        gravity: 0.06 + Math.random() * 0.04
+      });
+    }
+    // Add a few glitter sparks
+    for (let i = 0; i < 12; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 2;
+      streaks.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 2,
+        alpha: 1,
+        length: 2,
+        color: '#fff',
+        gravity: 0.1
+      });
+    }
+    explosions.push({streaks, age: 0});
+  }
+
   let frame = 0;
+  // Launch schedule
+  const launchTimes = [0, 25, 45, 70, 90, 115, 140, 160, 185, 210, 235, 255, 280, 310];
+
   function animate() {
     ctx.clearRect(0, 0, W, H);
-    if (frame % 35 === 0) burst(W*(0.2+Math.random()*0.6), H*(0.1+Math.random()*0.7));
-    for (let i = particles.length-1; i >= 0; i--) {
-      const p = particles[i];
-      p.x += p.vx; p.y += p.vy; p.vy += 0.06; p.alpha -= 0.018;
-      if (p.alpha <= 0) { particles.splice(i,1); continue; }
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+
+    // Launch rockets on schedule
+    if (launchTimes.includes(frame)) launchRocket();
+
+    // Update and draw rockets
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      const r = rockets[i];
+      r.trail.push({x: r.x, y: r.y});
+      if (r.trail.length > 12) r.trail.shift();
+
+      // Draw trail
+      for (let t = 0; t < r.trail.length; t++) {
+        const alpha = (t / r.trail.length) * 0.7;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = r.color;
+        ctx.beginPath();
+        ctx.arc(r.trail[t].x, r.trail[t].y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw rocket head
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      r.y += r.vy;
+
+      // Explode when reaching target
+      if (r.y <= r.targetY) {
+        explode(r.x, r.y, r.color);
+        rockets.splice(i, 1);
+      }
     }
+
+    // Update and draw explosions
+    for (let e = explosions.length - 1; e >= 0; e--) {
+      const exp = explosions[e];
+      exp.age++;
+      let allDead = true;
+
+      for (let s = exp.streaks.length - 1; s >= 0; s--) {
+        const streak = exp.streaks[s];
+        streak.alpha -= 0.018;
+        if (streak.alpha <= 0) { exp.streaks.splice(s, 1); continue; }
+        allDead = false;
+
+        const nx = streak.x + streak.vx;
+        const ny = streak.y + streak.vy;
+
+        ctx.globalAlpha = streak.alpha;
+        ctx.strokeStyle = streak.color;
+        ctx.lineWidth = streak.length > 4 ? 2 : 1;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(streak.x, streak.y);
+        ctx.lineTo(nx, ny);
+        ctx.stroke();
+
+        streak.x = nx;
+        streak.y = ny;
+        streak.vy += streak.gravity;
+        streak.vx *= 0.97;
+      }
+
+      if (allDead) explosions.splice(e, 1);
+    }
+
     ctx.globalAlpha = 1;
     frame++;
-    if (frame < 300) requestAnimationFrame(animate);
+
+    if (frame < 360) {
+      requestAnimationFrame(animate);
+    } else {
+      // Fade out overlay
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 1000);
+    }
   }
-  burst(W*0.3, H*0.4); burst(W*0.7, H*0.4);
+
   animate();
 }
 
@@ -2346,30 +2509,43 @@ let libraryOpen = false;
 function smartExSearch() {
   const query = (document.getElementById('ex-search')?.value || '').trim();
   const el = document.getElementById('smart-search-results');
+  const suggestArea = document.getElementById('suggest-area');
+
+  // Show/hide suggest area based on whether user is searching
+  if (suggestArea) suggestArea.style.display = query ? 'none' : 'block';
+
   if (!query) { el.innerHTML = ''; return; }
 
   const q = query.toLowerCase();
-  const matches = EX.filter(e =>
-    e.name.toLowerCase().includes(q) ||
-    (CAT[e.cat]||e.cat).toLowerCase().includes(q) ||
-    (e.targets||'').toLowerCase().includes(q)
-  ).slice(0, 6);
+  const scored = EX.map(e => {
+    const name = e.name.toLowerCase();
+    const cat = (CAT[e.cat]||e.cat).toLowerCase();
+    const targets = (e.targets||'').toLowerCase();
+    const id = e.id.toLowerCase();
+    let score = 0;
+    if (name.startsWith(q)) score += 10;
+    else if (name.includes(q)) score += 6;
+    if (id.includes(q)) score += 4;
+    if (cat.includes(q)) score += 3;
+    if (targets.includes(q)) score += 2;
+    return {ex: e, score};
+  }).filter(s => s.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
 
-  if (matches.length) {
-    el.innerHTML = `<div style="margin-bottom:6px;font-size:12px;color:var(--text3);font-weight:500">${matches.length} match${matches.length!==1?'es':''}</div>` +
-      matches.map(ex => `<div onclick="selectExAndOpenForm('${ex.id}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--surface2);border-radius:var(--r);margin-bottom:6px;cursor:pointer">
+  if (scored.length) {
+    el.innerHTML =
+      scored.map(({ex}) => `<div onclick="selectExAndOpenForm('${ex.id}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--surface2);border-radius:var(--r);margin-bottom:6px;cursor:pointer">
         <div>
-          <div style="font-size:15px;font-weight:600;color:var(--text)">${ex.name}</div>
-          <div style="font-size:12px;color:var(--text2)">${CAT[ex.cat]||ex.cat}</div>
+          <div style="font-size:16px;font-weight:600;color:#111">${ex.name}</div>
+          <div style="font-size:13px;color:#333">${CAT[ex.cat]||ex.cat}</div>
         </div>
-        <span style="font-size:22px;color:var(--accent);font-weight:300">+</span>
+        <span style="font-size:24px;color:var(--accent);font-weight:300">+</span>
       </div>`).join('') +
-      `<div onclick="showNewExForm('${query}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px dashed var(--border2);border-radius:var(--r);cursor:pointer;margin-top:4px">
-        <div style="font-size:14px;color:var(--text2)">Not what you're looking for? Add <strong>"${query}"</strong> as new exercise</div>
+      `<div onclick="showNewExForm('${query}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1px dashed var(--border2);border-radius:var(--r);cursor:pointer;margin-top:4px">
+        <div style="font-size:14px;color:var(--text2)">Add <strong>"${query}"</strong> as new exercise</div>
         <span style="font-size:20px;color:var(--text3)">+</span>
       </div>`;
   } else {
-    el.innerHTML = `<div style="margin-bottom:8px;font-size:14px;color:var(--text2)">No match for <strong>"${query}"</strong> — add it as a new exercise:</div>
+    el.innerHTML = `<div style="margin-bottom:8px;font-size:14px;color:var(--text2)">No match — add <strong>"${query}"</strong> as new exercise:</div>
       <div id="new-ex-form">${newExFormHTML(query)}</div>`;
   }
 }
@@ -2491,7 +2667,7 @@ function toggleLibEx(id) {
 const RECOVERY_HOURS = {
   legs: 48, back: 48, glutes: 48, chest: 48,
   shoulders: 24, arms: 24, core: 24,
-  balance: 0, mobility: 0,
+  balance: 0, mobility: 0, yoga: 0,
 };
 
 function getRecentlyTrainedCats() {
@@ -3110,6 +3286,53 @@ function toggleAllPRs() {
   if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
 }
 
+// ── WEIGHT TRACKING ────────────────────────────────────────
+function getWeightData() {
+  try { return JSON.parse(localStorage.getItem('wt-weight-log') || '[]'); } catch(e) { return []; }
+}
+function logWeight() {
+  const val = parseFloat(document.getElementById('weight-input')?.value);
+  if (!val || val < 50 || val > 500) return;
+  const data = getWeightData();
+  const today = localDate();
+  const existing = data.findIndex(w => w.date === today);
+  if (existing >= 0) data[existing].weight = val;
+  else data.push({date: today, weight: val});
+  data.sort((a,b) => a.date.localeCompare(b.date));
+  localStorage.setItem('wt-weight-log', JSON.stringify(data));
+  renderDashboard();
+}
+
+// ── WATER TRACKING ─────────────────────────────────────────
+function getWaterKey() { return 'wt-water-' + localDate(); }
+function getWaterToday() { return parseInt(localStorage.getItem(getWaterKey()) || '0'); }
+function addWaterCup() {
+  const cups = getWaterToday() + 1;
+  localStorage.setItem(getWaterKey(), cups);
+  if (cups === 8) launchWaterCelebration();
+  renderDashboard();
+}
+function removeWaterCup() {
+  const cups = Math.max(0, getWaterToday() - 1);
+  localStorage.setItem(getWaterKey(), cups);
+  renderDashboard();
+}
+function resetWater() {
+  localStorage.setItem(getWaterKey(), 0);
+  renderDashboard();
+}
+function launchWaterCelebration() {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
+  el.innerHTML = '<div style="background:linear-gradient(135deg,#4d96ff,#00e5ff);border-radius:20px;padding:30px 40px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.3)">'
+    + '<div style="font-size:50px;margin-bottom:8px">💧🎉💧</div>'
+    + '<div style="font-family:\'DM Sans\',sans-serif;font-weight:800;font-size:24px;color:#fff;text-transform:uppercase">8 cups!</div>'
+    + '<div style="font-size:15px;color:rgba(255,255,255,.9);margin-top:4px">Daily goal reached!</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
 function renderDashboard() {
   if (fChart) { fChart.destroy(); fChart = null; }
 
@@ -3366,6 +3589,94 @@ function renderDashboard() {
 
     <div style="margin-top:12px">
       <button onclick="showHistory()" class="btn" style="width:100%;font-size:16px;padding:14px;color:var(--text2);border-color:var(--border2)">&#128203; View workout history</button>
+
+    <!-- WEIGHT TRACKER -->
+    ${(() => {
+      const weightData = getWeightData();
+      const today = localDate();
+      const todayEntry = weightData.find(w => w.date === today);
+      const sorted = [...weightData].sort((a,b) => a.date.localeCompare(b.date));
+      const recent = sorted.slice(-90);
+      const first = sorted[0];
+      const last = sorted[sorted.length-1];
+      const change = (first && last && first !== last) ? (last.weight - first.weight).toFixed(1) : null;
+
+      const bars = recent.length > 1 ? (() => {
+        const min = Math.min(...recent.map(w => w.weight));
+        const max = Math.max(...recent.map(w => w.weight));
+        const range = max - min || 1;
+        const step = Math.max(1, Math.floor(recent.length / 60));
+        const pts = recent.filter((_,i) => i % step === 0 || i === recent.length-1);
+        return '<svg width="100%" height="80" style="overflow:visible">'
+          + '<polyline points="' + pts.map((w,i) => {
+              const x = (i / (pts.length-1)) * 100;
+              const y = 75 - ((w.weight - min) / range) * 65;
+              return x + '% ' + y;
+            }).join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>'
+          + pts.map((w,i) => {
+              const x = (i / (pts.length-1)) * 100;
+              const y = 75 - ((w.weight - min) / range) * 65;
+              return '<circle cx="' + x + '%" cy="' + y + '" r="3" fill="var(--accent)"/>';
+            }).join('')
+          + '<text x="0" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans">' + min + ' lbs</text>'
+          + '<text x="100%" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans" text-anchor="end">' + max + ' lbs</text>'
+          + '</svg>';
+      })() : '';
+
+      return '<div class="card" style="margin-bottom:12px">'
+        + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;margin-bottom:12px;color:var(--text)">⚖️ Weight</div>'
+        + '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">'
+        + '<div style="flex:1"><span class="lbl">Today\'s weight (lbs)</span>'
+        + '<input type="number" id="weight-input" step="0.1" placeholder="e.g. 134.5" value="' + (todayEntry?.weight || '') + '" style="font-size:16px;padding:10px 12px">'
+        + '</div>'
+        + '<button onclick="logWeight()" class="btn btn-g" style="padding:10px 16px;font-size:15px;margin-bottom:0">Log</button>'
+        + '</div>'
+        + (change !== null ? '<div style="display:flex;gap:10px;margin-bottom:12px">'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Start</div>'
+          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + first.weight + '</div>'
+          + '</div>'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Current</div>'
+          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + last.weight + '</div>'
+          + '</div>'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
+          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Change</div>'
+          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:' + (parseFloat(change) < 0 ? '#3B6D11' : parseFloat(change) > 0 ? 'var(--danger)' : 'var(--text)') + '">' + (parseFloat(change) > 0 ? '+' : '') + change + '</div>'
+          + '</div>'
+          + '</div>' : '')
+        + (bars ? '<div style="padding:4px 0">' + bars + '</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:10px 0">Log your weight to see your trend</div>')
+        + '</div>';
+    })()}
+
+    <!-- WATER TRACKER -->
+    ${(() => {
+      const cups = getWaterToday();
+      const goal = 8;
+      const done = cups >= goal;
+      const pct = Math.min(cups / goal * 100, 100);
+      return '<div class="card" style="margin-bottom:12px">'
+        + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;margin-bottom:12px;color:var(--text)">💧 Water</div>'
+        + (done ? '<div style="background:linear-gradient(135deg,#4d96ff,#00e5ff);border-radius:var(--r);padding:12px;text-align:center;margin-bottom:12px">'
+          + '<div style="font-family:\'DM Sans\',sans-serif;font-size:20px;font-weight:800;color:#fff;text-transform:uppercase">💧 Goal reached! 💧</div>'
+          + '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:3px">You drank ' + cups + ' cups today</div>'
+          + '</div>' : '')
+        + '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">'
+        + '<div style="font-family:\'DM Serif Display\',serif;font-size:40px;color:var(--accent);line-height:1">' + cups + '</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-size:14px;color:#333;margin-bottom:6px">of ' + goal + ' cups today</div>'
+        + '<div style="background:var(--surface2);border-radius:20px;height:10px;overflow:hidden">'
+        + '<div style="background:linear-gradient(90deg,#4d96ff,#00e5ff);height:100%;width:' + pct + '%;border-radius:20px;transition:width .3s"></div>'
+        + '</div>'
+        + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px">'
+        + '<button onclick="addWaterCup()" class="btn btn-g" style="flex:2;font-size:15px;padding:10px">+ 1 cup</button>'
+        + '<button onclick="removeWaterCup()" class="btn" style="flex:1;font-size:15px;padding:10px;color:var(--text3)" ' + (cups === 0 ? 'disabled' : '') + '>- 1</button>'
+        + '<button onclick="resetWater()" class="btn" style="flex:1;font-size:13px;padding:10px;color:var(--text3)">Reset</button>'
+        + '</div>'
+        + '</div>';
+    })()}
     </div>
     `}
   `;
