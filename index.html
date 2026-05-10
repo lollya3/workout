@@ -2343,11 +2343,16 @@ function launchFireworks() {
   const dailyPage = document.getElementById('page-daily');
   if (!dailyPage || !dailyPage.classList.contains('on')) return;
 
-  // Fullscreen overlay with light purple background
+  // Remove any existing overlay
+  const existing = document.getElementById('fw-fullscreen');
+  if (existing) existing.remove();
+
+  // Attach overlay to daily page only, not body
   const overlay = document.createElement('div');
   overlay.id = 'fw-fullscreen';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;pointer-events:none;background:rgba(83,74,183,0.18);transition:opacity 1s';
-  document.body.appendChild(overlay);
+  overlay.style.cssText = 'position:absolute;inset:0;z-index:9999;pointer-events:none;background:rgba(83,74,183,0.18);transition:opacity 1s';
+  dailyPage.style.position = 'relative';
+  dailyPage.appendChild(overlay);
 
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%';
