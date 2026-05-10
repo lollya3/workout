@@ -2668,11 +2668,73 @@ function renderLibrary() {
   const cats = [...new Set(EX.map(e => e.cat))];
   const notes = getExNotes();
   const el = document.getElementById('library-list');
-  el.innerHTML = cats.map(cat => {
-    const exes = EX.filter(e => e.cat === cat);
+
+  const CHAINS = [
+    {id:'posterior',name:'🔗 Posterior Chain',color:'#7c3aed',
+     summary:'The powerhouse of the body — runs along the entire back side. Responsible for hip extension, posture, and explosive power. Often undertrained and chronically tight from sitting.',
+     muscles:'Calves (gastrocnemius, soleus) · Hamstrings · Glutes (maximus, medius, minimus) · Erector spinae · Lats · Rear deltoids · Trapezius',
+     strengthen:'Deadlift, Romanian deadlift, Hip thrust, Glute bridge, Good mornings, Pull-ups, Rows, Leg curls, Calf raises',
+     stretch:"Standing forward fold, Seated forward fold, Pigeon pose, Downward dog, Child's pose, Figure-4 stretch",
+     note:'Weak posterior chain is one of the most common causes of lower back pain. Prioritize this chain.'},
+    {id:'anterior',name:'🔗 Anterior Chain',color:'#dc2626',
+     summary:'Runs along the front of the body. Drives hip flexion, knee extension, and trunk flexion. Often overactive and shortened from prolonged sitting.',
+     muscles:'Hip flexors (psoas, iliacus, rectus femoris) · Quadriceps · Tibialis anterior · Abdominals · Chest (pectorals) · Anterior deltoids',
+     strengthen:'Squats, Lunges, Leg press, Push-ups, Chest press, Planks, Leg raises, Step-ups',
+     stretch:'Hip flexor stretch, Warrior I, Cobra pose, Low lunge, Quad stretch, Bridge pose',
+     note:'Tight hip flexors pull the pelvis forward causing anterior pelvic tilt — a major contributor to lower back issues.'},
+    {id:'push',name:'💪 Push Muscles',color:'#0891b2',
+     summary:'Muscles involved in pushing movements — away from the body horizontally or overhead. Trained together because they work synergistically.',
+     muscles:'Chest (pectoralis major, minor) · Anterior deltoids · Triceps · Serratus anterior',
+     strengthen:'Push-ups, Bench press, Chest press, Shoulder press, Lateral raises, Tricep dips, Skull crushers, Tricep kickbacks',
+     stretch:'Doorway chest stretch, Cross-body shoulder stretch, Overhead tricep stretch, Cobra pose',
+     note:'Balance push work with equal pull volume to prevent shoulder impingement and rounded posture.'},
+    {id:'pull',name:'💪 Pull Muscles',color:'#059669',
+     summary:'Muscles involved in pulling movements — toward the body horizontally or vertically. Most people are push-dominant and underdeveloped here.',
+     muscles:'Lats · Trapezius (upper, middle, lower) · Rhomboids · Rear deltoids · Biceps · Brachialis · Forearm flexors',
+     strengthen:'Pull-ups, Chin-ups, Rows (cable, dumbbell), Lat pulldown, Face pulls, Band pull-aparts, Bicep curls',
+     stretch:"Overhead lat stretch, Child's pose, Downward dog",
+     note:'Aim for a 2:1 pull-to-push ratio if you have rounded shoulders or spend long hours at a desk.'},
+    {id:'lateral',name:'🔗 Lateral Chain',color:'#d97706',
+     summary:'Runs along the side of the body from foot to head. Controls lateral stability — prevents the body from collapsing sideways during single-leg movements.',
+     muscles:'Peroneals (outer ankle) · IT band/TFL · Gluteus medius and minimus · Obliques · Quadratus lumborum (QL)',
+     strengthen:'Side lunges, Lateral band walks, Single-leg deadlifts, Side planks, Hip abduction, Clamshells',
+     stretch:'Side body stretch, Triangle pose, IT band stretch, Lateral lunge hold, Supine spinal twist',
+     note:'Weak gluteus medius is a leading cause of knee caving inward during squats and lunges.'},
+    {id:'core',name:'⚡ Core (The Full Cylinder)',color:'#be185d',
+     summary:"The core is not just your abs — it's a full cylinder of muscle that stabilizes the spine from all directions. Think of it as your body's foundation for every movement.",
+     muscles:'Transverse abdominis (your natural weight belt) · Rectus abdominis · Internal and external obliques · Multifidus · Erector spinae · Pelvic floor · Diaphragm',
+     strengthen:'Plank, Dead bug, Bird dog, Hollow hold, Side plank, Hanging leg raises, Ab wheel, McGill curl-up',
+     stretch:"Cobra pose, Cat/Cow, Supine twist, Child's pose, Bridge pose",
+     note:'Bracing (breathing into a 360-degree brace) is more functional than sucking your stomach in. Practice before heavy lifts.'},
+  ];
+
+  const chainsHTML = '<div style="margin-bottom:14px">'
+    + '<div onclick="toggleMuscleGuide()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0;border-bottom:1px solid var(--border)">'
+    + '<div style="font-size:15px;font-weight:700;color:var(--text)">🧬 Muscle Chain Guide</div>'
+    + '<span id="muscle-guide-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>'
+    + '</div>'
+    + '<div id="muscle-guide-list" style="display:none;margin-top:10px">'
+    + CHAINS.map(function(chain) {
+        return '<div style="margin-bottom:8px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)">'
+          + '<div onclick="toggleChain(\'' + chain.id + '\')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;background:var(--surface)">'
+          + '<div style="font-size:15px;font-weight:700;color:' + chain.color + '">' + chain.name + '</div>'
+          + '<span id="chain-chev-' + chain.id + '" style="font-size:12px;color:var(--text3)">&#9660;</span>'
+          + '</div>'
+          + '<div id="chain-' + chain.id + '" style="display:none;padding:14px;background:var(--surface2);border-top:1px solid var(--border)">'
+          + '<div style="font-size:14px;color:#111;margin-bottom:10px;line-height:1.6">' + chain.summary + '</div>'
+          + '<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-bottom:4px">Muscles</div><div style="font-size:13px;color:#333;line-height:1.6">' + chain.muscles + '</div></div>'
+          + '<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#059669;margin-bottom:4px">💪 Strengthen with</div><div style="font-size:13px;color:#333;line-height:1.6">' + chain.strengthen + '</div></div>'
+          + '<div style="margin-bottom:8px"><div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#7c3aed;margin-bottom:4px">🧘 Stretch & mobilize</div><div style="font-size:13px;color:#333;line-height:1.6">' + chain.stretch + '</div></div>'
+          + '<div style="background:#fffbeb;border-left:3px solid #f59e0b;padding:8px 10px;border-radius:0 6px 6px 0;font-size:13px;color:#7a5c00;line-height:1.5">💡 ' + chain.note + '</div>'
+          + '</div></div>';
+      }).join('')
+    + '</div></div>';
+
+  el.innerHTML = chainsHTML + cats.map(function(cat) {
+    const exes = EX.filter(function(e) { return e.cat === cat; });
     return '<div style="margin-bottom:14px">'
       + '<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">' + (CAT[cat]||cat) + '</div>'
-      + exes.map(ex => {
+      + exes.map(function(ex) {
           const isExp = libExpandId === ex.id;
           const note = notes[ex.id] || '';
           return '<div style="margin-bottom:4px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)">'
@@ -2685,20 +2747,45 @@ function renderLibrary() {
             + '<span style="font-size:12px;color:var(--text3)">' + (isExp ? '▲' : '▼') + '</span>'
             + '<span onclick="event.stopPropagation();selectExAndOpenForm(\'' + ex.id + '\')" style="font-size:22px;color:var(--accent);line-height:1">+</span>'
             + '</div></div>'
-            + (isExp ? '<div style="padding:14px 14px;border-top:1px solid var(--border);background:var(--surface2)">'
-              + (ex.desc ? '<div style="font-size:16px;color:var(--text);margin-bottom:10px;line-height:1.6"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
-              + (ex.targets ? '<div style="font-size:14px;color:var(--text2);margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
+            + (isExp ? '<div style="padding:14px;border-top:1px solid var(--border);background:var(--surface2)">'
+              + (ex.desc ? '<div style="font-size:16px;color:#111;margin-bottom:10px;line-height:1.5"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
+              + (ex.targets ? '<div style="font-size:14px;color:#333;margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
               + (ex.tip ? '<div style="font-size:14px;color:var(--accent);background:var(--alight);padding:10px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5">💪 ' + ex.tip + '</div>' : '')
-              + '<div>'
-              + '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 My notes</div>'
-              + '<textarea id="note-' + ex.id + '" placeholder="e.g. Keep elbows in, relax shoulders, trainer tip..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:80px;line-height:1.5">' + note + '</textarea>'
+              + '<div><div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 My notes</div>'
+              + '<textarea id="note-' + ex.id + '" placeholder="e.g. Keep elbows in, relax shoulders..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:80px;line-height:1.5">' + note + '</textarea>'
               + '<button onclick="saveExNote(\'' + ex.id + '\',document.getElementById(\'note-' + ex.id + '\').value);renderLibrary()" class="btn btn-sm btn-g" style="margin-top:6px">Save note</button>'
-              + '</div>'
-              + '</div>' : '')
+              + '</div></div>' : '')
             + '</div>';
         }).join('')
       + '</div>';
   }).join('');
+}
+
+let muscleGuideOpen = false;
+let openChainId = null;
+
+function toggleMuscleGuide() {
+  muscleGuideOpen = !muscleGuideOpen;
+  const el = document.getElementById('muscle-guide-list');
+  const chev = document.getElementById('muscle-guide-chev');
+  if (el) el.style.display = muscleGuideOpen ? 'block' : 'none';
+  if (chev) chev.innerHTML = muscleGuideOpen ? '&#9650;' : '&#9660;';
+}
+
+function toggleChain(id) {
+  const el = document.getElementById('chain-' + id);
+  const chev = document.getElementById('chain-chev-' + id);
+  if (!el) return;
+  if (openChainId && openChainId !== id) {
+    const prev = document.getElementById('chain-' + openChainId);
+    const prevChev = document.getElementById('chain-chev-' + openChainId);
+    if (prev) prev.style.display = 'none';
+    if (prevChev) prevChev.innerHTML = '&#9660;';
+  }
+  const isOpen = el.style.display === 'block';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.innerHTML = isOpen ? '&#9660;' : '&#9650;';
+  openChainId = isOpen ? null : id;
 }
 
 function toggleLibEx(id) {
