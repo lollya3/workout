@@ -261,7 +261,7 @@ input::placeholder{color:var(--text3)}
 </div>
 
 <!-- DASHBOARD (combined History + Dashboard + Progress) -->
-<!-- LOG -->
+<!-- WORKOUT TRACKER v5.10 - category dropdowns -->
 <!-- COACH -->
 <div class="page" id="page-coach">
   <div id="goal-reminder"></div>
@@ -2743,15 +2743,19 @@ function renderLibrary() {
     + orderedCats.map(function(cat) {
         const exes = EX.filter(function(e) { return e.cat === cat; });
         if (!exes.length) return '';
-        return '<div style="margin-bottom:14px">'
-          + '<div style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">' + (CAT[cat]||cat) + '</div>'
+        return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">'
+          + '<div data-cat="' + cat + '" onclick="toggleCatSection(this.dataset.cat)" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:var(--surface)">'
+          + '<div style="font-size:15px;font-weight:700;color:var(--text)">' + (CAT[cat]||cat) + ' <span style="font-size:12px;font-weight:400;color:var(--text3)">(' + exes.length + ')</span></div>'
+          + '<span id="cat-chev-' + cat + '" style="font-size:12px;color:var(--text3)">&#9660;</span>'
+          + '</div>'
+          + '<div id="cat-section-' + cat + '" style="display:none;padding:8px">'
           + exes.map(function(ex) {
               const isExp = libExpandId === ex.id;
               const note = notes[ex.id] || '';
               return '<div style="margin-bottom:4px;border-radius:var(--r);overflow:hidden;border:1px solid var(--border)">'
                 + '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 12px;cursor:pointer;background:var(--surface)" onclick="toggleLibEx(\'' + ex.id + '\')">'
                 + '<div>'
-                + '<div style="font-size:16px;font-weight:600;color:var(--text)">' + ex.name + '</div>'
+                + '<div style="font-size:15px;font-weight:600;color:var(--text)">' + ex.name + '</div>'
                 + (note ? '<div style="font-size:12px;color:#7a5c00;background:#fffbeb;border-left:3px solid #f59e0b;padding:4px 8px;border-radius:0 4px 4px 0;margin-top:3px">📝 ' + note.substring(0,40) + (note.length>40?'…':'') + '</div>' : '')
                 + '</div>'
                 + '<div style="display:flex;align-items:center;gap:10px">'
@@ -2759,16 +2763,16 @@ function renderLibrary() {
                 + '<span onclick="event.stopPropagation();selectExAndOpenForm(\'' + ex.id + '\')" style="font-size:22px;color:var(--accent);line-height:1">+</span>'
                 + '</div></div>'
                 + (isExp ? '<div style="padding:14px;border-top:1px solid var(--border);background:var(--surface2)">'
-                  + (ex.desc ? '<div style="font-size:16px;color:#111;margin-bottom:10px;line-height:1.5"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
-                  + (ex.targets ? '<div style="font-size:14px;color:#333;margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
-                  + (ex.tip ? '<div style="font-size:14px;color:var(--accent);background:var(--alight);padding:10px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5">💪 ' + ex.tip + '</div>' : '')
+                  + (ex.desc ? '<div style="font-size:15px;color:#111;margin-bottom:10px;line-height:1.5"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
+                  + (ex.targets ? '<div style="font-size:13px;color:#333;margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
+                  + (ex.tip ? '<div style="font-size:13px;color:var(--accent);background:var(--alight);padding:10px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5">💪 ' + ex.tip + '</div>' : '')
                   + '<div><div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 My notes</div>'
                   + '<textarea id="note-' + ex.id + '" placeholder="e.g. Keep elbows in, relax shoulders..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:80px;line-height:1.5">' + note + '</textarea>'
                   + '<button onclick="saveExNote(\'' + ex.id + '\',document.getElementById(\'note-' + ex.id + '\').value);renderLibrary()" class="btn btn-sm btn-g" style="margin-top:6px">Save note</button>'
                   + '</div></div>' : '')
                 + '</div>';
             }).join('')
-          + '</div>';
+          + '</div></div>';
       }).join('')
     + '</div></div>';
 
@@ -2779,6 +2783,15 @@ let muscleGuideOpen = false;
 let openChainId = null;
 
 let exerciseListOpen = false;
+
+function toggleCatSection(cat) {
+  const el = document.getElementById('cat-section-' + cat);
+  const chev = document.getElementById('cat-chev-' + cat);
+  if (!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
+}
 
 function toggleExerciseList() {
   exerciseListOpen = !exerciseListOpen;
