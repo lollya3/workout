@@ -1833,6 +1833,15 @@ function saveSuggestion(exId) {
   renderTodayCard();
 }
 
+function closeInlineForm() {
+  const el = document.getElementById('smart-search-results');
+  if (el) el.innerHTML = '';
+  const search = document.getElementById('ex-search');
+  if (search) search.value = '';
+  const suggestArea = document.getElementById('suggest-area');
+  if (suggestArea) suggestArea.style.display = 'block';
+}
+
 function selectExAndOpenForm(id) {
   const ex = EX.find(e => e.id === id);
   if (!ex) return;
@@ -1868,7 +1877,7 @@ function selectExAndOpenForm(id) {
   el.innerHTML = '<div style="background:var(--alight);border:1px solid var(--accent);border-radius:var(--r);padding:12px 14px">'
     + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     + '<div style="font-size:15px;font-weight:700;color:var(--text)">' + ex.name + '</div>'
-    + '<button onclick="document.getElementById(\'smart-search-results\').innerHTML=\'\';document.getElementById(\'suggest-area\').style.display=\'block\'" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3)">&#x2715;</button>'
+    + '<button onclick="closeInlineForm()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text3)">&#x2715;</button>'
     + '</div>'
     + infoSection
     + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
@@ -2734,21 +2743,24 @@ function renderLibrary() {
   const catOrder = ['back','legs','glutes','chest','shoulders','arms','core','balance','mobility','yoga'];
   const orderedCats = [...catOrder.filter(c => cats.includes(c)), ...cats.filter(c => !catOrder.includes(c))];
 
+  // Store ordered cats globally for toggle access
+  window._libCats = orderedCats;
+
   const exercisesHTML = '<div style="margin-bottom:14px">'
     + '<div onclick="toggleExerciseList()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:10px 0;border-bottom:1px solid var(--border)">'
     + '<div style="font-size:15px;font-weight:700;color:var(--text)">📋 Exercises</div>'
     + '<span id="exercise-list-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>'
     + '</div>'
     + '<div id="exercise-list-body" style="display:none;margin-top:10px">'
-    + orderedCats.map(function(cat) {
+    + orderedCats.map(function(cat, idx) {
         const exes = EX.filter(function(e) { return e.cat === cat; });
         if (!exes.length) return '';
         return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden">'
-          + '<div data-cat="' + cat + '" onclick="toggleCatSection(this.dataset.cat)" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:var(--surface)">'
+          + '<div onclick="toggleCatSection(' + idx + ')" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;background:var(--surface)">'
           + '<div style="font-size:15px;font-weight:700;color:var(--text)">' + (CAT[cat]||cat) + ' <span style="font-size:12px;font-weight:400;color:var(--text3)">(' + exes.length + ')</span></div>'
-          + '<span id="cat-chev-' + cat + '" style="font-size:12px;color:var(--text3)">&#9660;</span>'
+          + '<span id="cat-chev-' + idx + '" style="font-size:12px;color:var(--text3)">&#9660;</span>'
           + '</div>'
-          + '<div id="cat-section-' + cat + '" style="display:none;padding:8px">'
+          + '<div id="cat-section-' + idx + '" style="display:none;padding:8px">'
           + exes.map(function(ex) {
               const isExp = libExpandId === ex.id;
               const note = notes[ex.id] || '';
@@ -2784,9 +2796,9 @@ let openChainId = null;
 
 let exerciseListOpen = false;
 
-function toggleCatSection(cat) {
-  const el = document.getElementById('cat-section-' + cat);
-  const chev = document.getElementById('cat-chev-' + cat);
+function toggleCatSection(idx) {
+  const el = document.getElementById('cat-section-' + idx);
+  const chev = document.getElementById('cat-chev-' + idx);
   if (!el) return;
   const open = el.style.display === 'none';
   el.style.display = open ? 'block' : 'none';
@@ -3499,6 +3511,78 @@ function launchWaterCelebration() {
   setTimeout(() => el.remove(), 2500);
 }
 
+// ── GLUCOSE TRACKING ───────────────────────────────────────
+function getGlucoseData() {
+  try { return JSON.parse(localStorage.getItem('wt-glucose') || '[]'); } catch(e) { return []; }
+}
+
+function logGlucose() {
+  const val = parseInt(document.getElementById('glucose-input')?.value);
+  if (!val || val < 20 || val > 600) return;
+  const context = document.getElementById('glucose-context')?.value || 'other';
+  const notes = document.getElementById('glucose-notes')?.value.trim() || '';
+  const now = new Date();
+  const entry = {
+    id: Date.now(),
+    date: localDate(),
+    time: now.toTimeString().slice(0,5),
+    value: val,
+    context,
+    notes
+  };
+  const data = getGlucoseData();
+  data.push(entry);
+  localStorage.setItem('wt-glucose', JSON.stringify(data));
+  document.getElementById('glucose-input').value = '';
+  document.getElementById('glucose-notes').value = '';
+  renderDashboard();
+}
+
+function deleteGlucose(id) {
+  const data = getGlucoseData().filter(g => g.id !== id);
+  localStorage.setItem('wt-glucose', JSON.stringify(data));
+  renderDashboard();
+}
+
+function editGlucose(id) {
+  const data = getGlucoseData();
+  const entry = data.find(g => g.id === id);
+  if (!entry) return;
+  const row = document.getElementById('glucose-row-' + id);
+  if (!row) return;
+  const contextLabels = {fasting:'Fasting',before_meal:'Before meal',after_meal:'After meal',bedtime:'Bedtime',other:'Other'};
+  row.innerHTML = '<div style="flex:1;display:flex;flex-direction:column;gap:6px">'
+    + '<div style="display:flex;gap:6px"><input type="number" id="gedit-val-' + id + '" value="' + entry.value + '" style="font-size:15px;padding:7px;width:80px"><select id="gedit-ctx-' + id + '" style="font-size:14px;flex:1">'
+    + Object.entries(contextLabels).map(([k,v]) => '<option value="' + k + '"' + (entry.context===k?' selected':'') + '>' + v + '</option>').join('')
+    + '</select></div>'
+    + '<input type="text" id="gedit-notes-' + id + '" value="' + (entry.notes||'') + '" placeholder="Notes..." style="font-size:14px;padding:7px">'
+    + '<div style="display:flex;gap:6px"><button onclick="saveGlucoseEdit(' + id + ')" class="btn btn-sm btn-g">✓ Save</button><button onclick="renderDashboard()" class="btn btn-sm">Cancel</button></div>'
+    + '</div>';
+}
+
+function saveGlucoseEdit(id) {
+  const val = parseInt(document.getElementById('gedit-val-' + id)?.value);
+  const ctx = document.getElementById('gedit-ctx-' + id)?.value;
+  const notes = document.getElementById('gedit-notes-' + id)?.value.trim() || '';
+  if (!val) return;
+  const data = getGlucoseData();
+  const entry = data.find(g => g.id === id);
+  if (entry) { entry.value = val; entry.context = ctx; entry.notes = notes; }
+  localStorage.setItem('wt-glucose', JSON.stringify(data));
+  renderDashboard();
+}
+
+// ── HEALTH TRACKING TOGGLE ─────────────────────────────────
+let healthTrackingOpen = false;
+
+function toggleHealthTracking() {
+  healthTrackingOpen = !healthTrackingOpen;
+  const el = document.getElementById('health-tracking-body');
+  const chev = document.getElementById('health-tracking-chev');
+  if (el) el.style.display = healthTrackingOpen ? 'block' : 'none';
+  if (chev) chev.innerHTML = healthTrackingOpen ? '&#9650;' : '&#9660;';
+}
+
 function renderDashboard() {
   if (fChart) { fChart.destroy(); fChart = null; }
 
@@ -3560,14 +3644,14 @@ function renderDashboard() {
       <div style="display:flex;flex-direction:column;gap:10px">
 
         <!-- GOAL -->
-        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
+        <div onclick="showPage('motivation')" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r);cursor:pointer;active:opacity:.8">
           <div style="font-size:28px;line-height:1">${goalDone ? '🏆' : goalText ? '🎯' : '○'}</div>
           <div style="flex:1">
             <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Goal</div>
             ${goalText
               ? `<div style="font-size:16px;color:var(--text);line-height:1.4">${goalText}</div>
                  <div style="font-size:14px;color:${goalDone?'#3B6D11':'var(--text3)'};font-weight:600;margin-top:3px">${goalDone?'✓ Crushed!':'Not yet completed'}</div>`
-              : `<div style="font-size:15px;color:var(--text3)">No goal set — <button onclick="showPage('motivation')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:15px;padding:0;text-decoration:underline">set one</button></div>`
+              : `<div style="font-size:15px;color:var(--text3)">Tap to set a goal →</div>`
             }
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -3577,14 +3661,14 @@ function renderDashboard() {
         </div>
 
         <!-- WORKOUT -->
-        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
+        <div onclick="showPage('coach')" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r);cursor:pointer">
           <div style="font-size:28px;line-height:1">${workoutDone ? '⚡' : '○'}</div>
           <div style="flex:1">
             <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Workout</div>
             ${workoutDone
               ? `<div style="font-size:16px;color:var(--text)">${todaySes.entries.length} exercise${todaySes.entries.length!==1?'s':''} logged</div>
                  <div style="font-size:14px;color:#3B6D11;font-weight:600;margin-top:3px">✓ Done!</div>`
-              : `<div style="font-size:15px;color:var(--text3)">Not logged — <button onclick="showPage('coach')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:15px;padding:0;text-decoration:underline">start workout</button></div>`
+              : `<div style="font-size:15px;color:var(--text3)">Tap to log a workout →</div>`
             }
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -3594,14 +3678,14 @@ function renderDashboard() {
         </div>
 
         <!-- DAILY DOZEN -->
-        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r)">
+        <div onclick="showPage('daily')" style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:var(--r);cursor:pointer">
           <div style="font-size:28px;line-height:1">${dailyDone ? '🌅' : '○'}</div>
           <div style="flex:1">
             <div style="font-size:16px;font-weight:800;color:#111;margin-bottom:4px">Daily Dozen</div>
             ${dailyDone
               ? `<div style="font-size:16px;color:var(--text)">All 12 complete</div>
                  <div style="font-size:14px;color:#3B6D11;font-weight:600;margin-top:3px">✓ Crushed!</div>`
-              : `<div style="font-size:15px;color:var(--text3)">${dailyChecked.size} of ${dailyList.length} done — <button onclick="showPage('daily')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-family:'DM Sans',sans-serif;font-size:15px;padding:0;text-decoration:underline">go there</button></div>`
+              : `<div style="font-size:15px;color:var(--text3)">${dailyChecked.size} of ${dailyList.length} done — tap to go →</div>`
             }
           </div>
           <div style="text-align:right;flex-shrink:0">
@@ -3756,8 +3840,9 @@ function renderDashboard() {
     <div style="margin-top:12px">
       <button onclick="showHistory()" class="btn" style="width:100%;font-size:16px;padding:14px;color:var(--text2);border-color:var(--border2)">&#128203; View workout history</button>
 
-    <!-- WEIGHT TRACKER -->
+    <!-- HEALTH TRACKING -->
     ${(() => {
+      // Weight data
       const weightData = getWeightData();
       const today = localDate();
       const todayEntry = weightData.find(w => w.date === today);
@@ -3766,7 +3851,6 @@ function renderDashboard() {
       const first = sorted[0];
       const last = sorted[sorted.length-1];
       const change = (first && last && first !== last) ? (last.weight - first.weight).toFixed(1) : null;
-
       const bars = recent.length > 1 ? (() => {
         const min = Math.min(...recent.map(w => w.weight));
         const max = Math.max(...recent.map(w => w.weight));
@@ -3779,18 +3863,31 @@ function renderDashboard() {
               const y = 75 - ((w.weight - min) / range) * 65;
               return x + '% ' + y;
             }).join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>'
-          + pts.map((w,i) => {
-              const x = (i / (pts.length-1)) * 100;
-              const y = 75 - ((w.weight - min) / range) * 65;
-              return '<circle cx="' + x + '%" cy="' + y + '" r="3" fill="var(--accent)"/>';
-            }).join('')
           + '<text x="0" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans">' + min + ' lbs</text>'
           + '<text x="100%" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans" text-anchor="end">' + max + ' lbs</text>'
           + '</svg>';
       })() : '';
 
+      // Water data
+      const cups = getWaterToday();
+      const goal = 8;
+      const waterDone = cups >= goal;
+      const pct = Math.min(cups / goal * 100, 100);
+
+      // Glucose data
+      const glucoseData = getGlucoseData();
+      const todayGlucose = glucoseData.filter(g => g.date === today);
+
       return '<div class="card" style="margin-bottom:12px">'
-        + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;margin-bottom:12px;color:var(--text)">⚖️ Weight</div>'
+        + '<div onclick="toggleHealthTracking()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:0">'
+        + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">🏥 Health Tracking</div>'
+        + '<span id="health-tracking-chev" style="font-size:13px;color:var(--text3)">&#9660;</span>'
+        + '</div>'
+        + '<div id="health-tracking-body" style="display:none;margin-top:14px">'
+
+        // WEIGHT
+        + '<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">'
+        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:10px">⚖️ Weight</div>'
         + '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">'
         + '<div style="flex:1"><span class="lbl">Today\'s weight (lbs)</span>'
         + '<input type="number" id="weight-input" step="0.1" placeholder="e.g. 134.5" value="' + (todayEntry?.weight || '') + '" style="font-size:16px;padding:10px 12px">'
@@ -3798,50 +3895,74 @@ function renderDashboard() {
         + '<button onclick="logWeight()" class="btn btn-g" style="padding:10px 16px;font-size:15px;margin-bottom:0">Log</button>'
         + '</div>'
         + (change !== null ? '<div style="display:flex;gap:10px;margin-bottom:12px">'
-          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
-          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Start</div>'
-          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + first.weight + '</div>'
-          + '</div>'
-          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
-          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Current</div>'
-          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + last.weight + '</div>'
-          + '</div>'
-          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
-          + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Change</div>'
-          + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:' + (parseFloat(change) < 0 ? '#3B6D11' : parseFloat(change) > 0 ? 'var(--danger)' : 'var(--text)') + '">' + (parseFloat(change) > 0 ? '+' : '') + change + '</div>'
-          + '</div>'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Start</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + first.weight + '</div></div>'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Current</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + last.weight + '</div></div>'
+          + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Change</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:' + (parseFloat(change) < 0 ? '#3B6D11' : parseFloat(change) > 0 ? 'var(--danger)' : 'var(--text)') + '">' + (parseFloat(change) > 0 ? '+' : '') + change + '</div></div>'
           + '</div>' : '')
-        + (bars ? '<div style="padding:4px 0">' + bars + '</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:10px 0">Log your weight to see your trend</div>')
-        + '</div>';
-    })()}
+        + (bars ? '<div style="padding:4px 0">' + bars + '</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Log your weight to see your trend</div>')
+        + '</div>'
 
-    <!-- WATER TRACKER -->
-    ${(() => {
-      const cups = getWaterToday();
-      const goal = 8;
-      const done = cups >= goal;
-      const pct = Math.min(cups / goal * 100, 100);
-      return '<div class="card" style="margin-bottom:12px">'
-        + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;margin-bottom:12px;color:var(--text)">💧 Water</div>'
-        + (done ? '<div style="background:linear-gradient(135deg,#4d96ff,#00e5ff);border-radius:var(--r);padding:12px;text-align:center;margin-bottom:12px">'
-          + '<div style="font-family:\'DM Sans\',sans-serif;font-size:20px;font-weight:800;color:#fff;text-transform:uppercase">💧 Goal reached! 💧</div>'
-          + '<div style="font-size:13px;color:rgba(255,255,255,.85);margin-top:3px">You drank ' + cups + ' cups today</div>'
-          + '</div>' : '')
-        + '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">'
+        // WATER
+        + '<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">'
+        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:10px">💧 Water</div>'
+        + (waterDone ? '<div style="background:linear-gradient(135deg,#4d96ff,#00e5ff);border-radius:var(--r);padding:10px;text-align:center;margin-bottom:10px"><div style="font-weight:800;color:#fff;font-size:16px">💧 Goal reached! 💧</div></div>' : '')
+        + '<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">'
         + '<div style="font-family:\'DM Serif Display\',serif;font-size:40px;color:var(--accent);line-height:1">' + cups + '</div>'
-        + '<div style="flex:1">'
-        + '<div style="font-size:14px;color:#333;margin-bottom:6px">of ' + goal + ' cups today</div>'
-        + '<div style="background:var(--surface2);border-radius:20px;height:10px;overflow:hidden">'
-        + '<div style="background:linear-gradient(90deg,#4d96ff,#00e5ff);height:100%;width:' + pct + '%;border-radius:20px;transition:width .3s"></div>'
-        + '</div>'
-        + '</div>'
+        + '<div style="flex:1"><div style="font-size:14px;color:#333;margin-bottom:6px">of ' + goal + ' cups today</div>'
+        + '<div style="background:var(--surface2);border-radius:20px;height:10px;overflow:hidden"><div style="background:linear-gradient(90deg,#4d96ff,#00e5ff);height:100%;width:' + pct + '%;border-radius:20px"></div></div></div>'
         + '</div>'
         + '<div style="display:flex;gap:8px">'
         + '<button onclick="addWaterCup()" class="btn btn-g" style="flex:2;font-size:15px;padding:10px">+ 1 cup</button>'
-        + '<button onclick="removeWaterCup()" class="btn" style="flex:1;font-size:15px;padding:10px;color:var(--text3)" ' + (cups === 0 ? 'disabled' : '') + '>- 1</button>'
+        + '<button onclick="removeWaterCup()" class="btn" style="flex:1;font-size:15px;padding:10px;color:var(--text3)"' + (cups === 0 ? ' disabled' : '') + '>- 1</button>'
         + '<button onclick="resetWater()" class="btn" style="flex:1;font-size:13px;padding:10px;color:var(--text3)">Reset</button>'
+        + '</div></div>'
+
+        // GLUCOSE
+        + '<div style="border-top:1px solid var(--border);padding-top:14px">'
+        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:10px">🩸 Glucose</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Normal: Fasting 70–100 · Post-meal &lt;140 mg/dL</div>'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">'
+        + '<div><span class="lbl">Reading (mg/dL)</span><input type="number" id="glucose-input" min="0" max="600" placeholder="e.g. 95" style="font-size:16px;padding:10px 12px"></div>'
+        + '<div><span class="lbl">Context</span><select id="glucose-context" style="font-size:15px"><option value="fasting">Fasting</option><option value="before_meal">Before meal</option><option value="after_meal">After meal</option><option value="bedtime">Bedtime</option><option value="other">Other</option></select></div>'
         + '</div>'
-        + '</div>';
+        + '<div style="margin-bottom:10px"><span class="lbl">Notes (optional)</span><input type="text" id="glucose-notes" placeholder="e.g. had fries, skipped breakfast..." style="font-size:15px;padding:10px 12px"></div>'
+        + '<button onclick="logGlucose()" class="btn btn-g" style="width:100%;font-size:15px;padding:10px;margin-bottom:14px">Log reading</button>'
+        + (glucoseData.length ? '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">All readings</div>'
+          + '<div style="max-height:300px;overflow-y:auto">'
+          + [...glucoseData].reverse().map(function(g) {
+              const contextLabels = {fasting:'Fasting',before_meal:'Before meal',after_meal:'After meal',bedtime:'Bedtime',other:'Other'};
+              const isFasting = g.context === 'fasting';
+              const isAfterMeal = g.context === 'after_meal';
+              let color = '#3B6D11'; let bg = '#f0faf0'; let label = 'Normal';
+              if (isFasting) {
+                if (g.value > 125) { color = '#dc2626'; bg = '#fef2f2'; label = 'High'; }
+                else if (g.value > 100) { color = '#d97706'; bg = '#fffbeb'; label = 'Borderline'; }
+              } else if (isAfterMeal) {
+                if (g.value > 180) { color = '#dc2626'; bg = '#fef2f2'; label = 'High'; }
+                else if (g.value > 140) { color = '#d97706'; bg = '#fffbeb'; label = 'Borderline'; }
+              } else {
+                if (g.value > 140) { color = '#dc2626'; bg = '#fef2f2'; label = 'High'; }
+                else if (g.value > 100) { color = '#d97706'; bg = '#fffbeb'; label = 'Check'; }
+              }
+              return '<div id="glucose-row-' + g.id + '" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">'
+                + '<div style="background:' + bg + ';border-radius:var(--r);padding:6px 10px;text-align:center;min-width:60px">'
+                + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:' + color + ';line-height:1">' + g.value + '</div>'
+                + '<div style="font-size:10px;font-weight:700;color:' + color + '">' + label + '</div>'
+                + '</div>'
+                + '<div style="flex:1">'
+                + '<div style="font-size:14px;font-weight:600;color:#111">' + (contextLabels[g.context]||g.context) + '</div>'
+                + '<div style="font-size:12px;color:var(--text3)">' + new Date(g.date + 'T' + g.time).toLocaleString(undefined,{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) + '</div>'
+                + (g.notes ? '<div style="font-size:12px;color:#7a5c00;background:#fffbeb;border-left:3px solid #f59e0b;padding:3px 8px;border-radius:0 4px 4px 0;margin-top:3px">📝 ' + g.notes + '</div>' : '')
+                + '</div>'
+                + '<div style="display:flex;flex-direction:column;gap:4px">'
+                + '<button onclick="editGlucose(' + g.id + ')" class="btn btn-sm" style="font-size:11px">Edit</button>'
+                + '<button onclick="deleteGlucose(' + g.id + ')" class="btn btn-sm" style="font-size:11px;color:var(--danger);border-color:var(--danger)">Del</button>'
+                + '</div></div>';
+            }).join('')
+          + '</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:10px 0">No readings logged yet</div>')
+        + '</div>'
+
+        + '</div></div>';
     })()}
     </div>
     `}
