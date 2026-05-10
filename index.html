@@ -935,7 +935,7 @@ function showPage(p) {
   document.querySelectorAll('.page').forEach(el => el.classList.remove('on'));
   document.querySelectorAll('.nt').forEach(el => el.classList.remove('on'));
   document.getElementById('page-' + p).classList.add('on');
-  ['motivation','coach','daily','dashboard'].forEach((n,i) => {
+  ['motivation','daily','coach','dashboard'].forEach((n,i) => {
     if (n === p) document.querySelectorAll('.nt')[i].classList.add('on');
   });
   if (p === 'dashboard') switchDashView();
@@ -1134,9 +1134,14 @@ function renderTodayCard() {
     ${ses.entries.map((e, eIdx) => {
       const wk = e.sets.filter(s2 => s2.type !== 'warmup');
       const wu = e.sets.filter(s2 => s2.type === 'warmup');
+      const notes = getExNotes();
+      const note = notes[e.exId] || '';
       return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <div style="font-size:14px;font-weight:600;color:var(--text)">${e.exName}</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--text)">${e.exName}</div>
+            ${note ? `<div style="font-size:12px;color:var(--accent);margin-top:2px">📝 ${note}</div>` : ''}
+          </div>
           <button onclick="deleteTodayEntry(${ses.id},${eIdx})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);padding:2px 6px;line-height:1" title="Remove">&#x2715;</button>
         </div>
         ${[...wu.map((s2,si) => ({s2,si,type:'warmup'})), ...wk.map((s2,si) => ({s2,si:wu.length+si,type:'working'}))].map(({s2,si}) => {
@@ -1148,12 +1153,31 @@ function renderTodayCard() {
             <button onclick="editTodaySet('${ses.id}',${eIdx},${si},'${rowId}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--accent);padding:2px 6px;font-family:inherit">Edit</button>
           </div>`;
         }).join('')}
+        <div style="margin-top:6px">
+          <div id="note-edit-area-${eIdx}" style="display:none">
+            <textarea id="note-edit-${eIdx}" style="font-family:'DM Sans',sans-serif;font-size:13px;width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;resize:none;height:60px;color:var(--text);background:var(--surface)">${note}</textarea>
+            <button onclick="saveTodayNote('${e.exId}',${eIdx})" class="btn btn-sm btn-g" style="margin-top:4px">Save note</button>
+          </div>
+          <button onclick="toggleTodayNote(${eIdx})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent);font-family:inherit;padding:2px 0">${note ? '✏️ Edit note' : '+ Add note'}</button>
+        </div>
       </div>`;
     }).join('')}
   </div>`;
   // Sync chevron state
   const chev = document.getElementById('logged-chev');
   if (chev) chev.innerHTML = loggedListOpen ? '&#9650;' : '&#9660;';
+}
+
+function toggleTodayNote(eIdx) {
+  const area = document.getElementById('note-edit-area-' + eIdx);
+  if (!area) return;
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveTodayNote(exId, eIdx) {
+  const val = document.getElementById('note-edit-' + eIdx)?.value.trim();
+  if (val !== undefined) saveExNote(exId, val);
+  renderTodayCard();
 }
 
 function deleteTodayEntry(sesId, eIdx) {
@@ -1642,15 +1666,29 @@ function initCoach() {
 }
 
 function getSuggestions() {
-  const loc = document.getElementById('ses-loc')?.value || 'gym';
+  const loc = document.getElementById('ses-loc')?.value || 'all';
   const recentCats = getRecentlyTrainedCats();
 
-  // Build pool of exercises for this location, avoiding recently trained cats
-  const locPool = EX.filter(e => loc === 'all' || e.loc.includes(loc));
-  const fresh = locPool.filter(e => !recentCats.has(e.cat) && !['balance','mobility'].includes(e.cat));
-  const pool = fresh.length >= 3 ? fresh : locPool.filter(e => !['balance','mobility'].includes(e.cat));
+  // Get today's already-logged exercise IDs (skip these specific exercises)
+  const today = localDate();
+  const todaySes = sessions.find(s => s.date === today);
+  const todayExIds = new Set(todaySes ? todaySes.entries.map(e => e.exId) : []);
 
-  // Pick 5 diverse exercises — spread across different categories
+  // Build pool filtered by location
+  const locPool = EX.filter(e => loc === 'all' || e.loc.includes(loc));
+
+  // Only skip specific exercises already done today + previous days' recovery categories
+  const fresh = locPool.filter(e =>
+    !todayExIds.has(e.id) &&
+    !recentCats.has(e.cat) &&
+    !['balance','mobility','yoga'].includes(e.cat)
+  );
+  const pool = fresh.length >= 3 ? fresh : locPool.filter(e =>
+    !todayExIds.has(e.id) &&
+    !['balance','mobility','yoga'].includes(e.cat)
+  );
+
+  // Pick 5 diverse exercises across different categories
   const picked = [];
   const usedCats = new Set();
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
@@ -1658,7 +1696,6 @@ function getSuggestions() {
     if (!usedCats.has(ex.cat)) { picked.push(ex); usedCats.add(ex.cat); }
     if (picked.length >= 5) break;
   }
-  // Fill remaining spots if needed
   if (picked.length < 5) {
     for (const ex of shuffled) {
       if (!picked.find(p => p.id === ex.id)) picked.push(ex);
@@ -1667,20 +1704,23 @@ function getSuggestions() {
   }
 
   const el = document.getElementById('suggestions-list');
-  if (!picked.length) { el.innerHTML = '<div style="color:var(--text3);font-size:14px">No exercises available for this location.</div>'; return; }
+  if (!picked.length) { el.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:8px 0">No exercises available — try changing location.</div>'; return; }
 
-  const recoverMsg = recentCats.size > 0
-    ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px">Avoiding recently trained: ${[...recentCats].map(c => CAT[c]||c).join(', ')}</div>`
+  // Build context message
+  const msgs = [];
+  if (todayExIds.size > 0) msgs.push(`skipping ${todayExIds.size} already done today`);
+  if (recentCats.size > 0) msgs.push(`avoiding from previous days: ${[...recentCats].map(c => CAT[c]||c).join(', ')}`);
+  const contextMsg = msgs.length
+    ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px">${msgs.join(' · ')}</div>`
     : '';
 
-  el.innerHTML = recoverMsg + picked.map(ex => {
-    const pills = ex.loc.map(l => `<span class="pill pill-${l}">${LOC[l]}</span>`).join('');
-    return `<div id="sug-row-${ex.id}" style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectSuggestion('${ex.id}')">
+  el.innerHTML = contextMsg + picked.map(ex => {
+    return `<div id="sug-row-${ex.id}" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectSuggestion('${ex.id}')">
       <div>
-        <div style="font-size:15px;font-weight:600;color:var(--text)">${ex.name}</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:2px">${CAT[ex.cat]||ex.cat} ${pills}</div>
+        <div style="font-size:16px;font-weight:600;color:#111">${ex.name}</div>
+        <div style="font-size:13px;color:#333">${CAT[ex.cat]||ex.cat}</div>
       </div>
-      <span style="font-size:20px;color:var(--accent)">+</span>
+      <span style="font-size:22px;color:var(--accent)">+</span>
     </div>`;
   }).join('');
 }
@@ -2509,10 +2549,6 @@ let libraryOpen = false;
 function smartExSearch() {
   const query = (document.getElementById('ex-search')?.value || '').trim();
   const el = document.getElementById('smart-search-results');
-  const suggestArea = document.getElementById('suggest-area');
-
-  // Show/hide suggest area based on whether user is searching
-  if (suggestArea) suggestArea.style.display = query ? 'none' : 'block';
 
   if (!query) { el.innerHTML = ''; return; }
 
