@@ -1182,20 +1182,22 @@ function saveTodayNote(exId, eIdx) {
 }
 
 function deleteTodaySet(sesId, eIdx, sIdx) {
-  const s = sessions.find(x => x.id === sesId);
+  const id = parseInt(sesId);
+  const s = sessions.find(x => x.id === id);
   if (!s || !s.entries[eIdx]) return;
   s.entries[eIdx].sets.splice(sIdx, 1);
   if (!s.entries[eIdx].sets.length) s.entries.splice(eIdx, 1);
-  if (!s.entries.length) sessions = sessions.filter(x => x.id !== sesId);
+  if (!s.entries.length) sessions = sessions.filter(x => x.id !== id);
   save();
   renderTodayCard();
 }
 
 function deleteTodayEntry(sesId, eIdx) {
-  const s = sessions.find(x => x.id === sesId);
+  const id = parseInt(sesId);
+  const s = sessions.find(x => x.id === id);
   if (!s) return;
   s.entries.splice(eIdx, 1);
-  if (!s.entries.length) sessions = sessions.filter(x => x.id !== sesId);
+  if (!s.entries.length) sessions = sessions.filter(x => x.id !== id);
   save();
   renderTodayCard();
 }
