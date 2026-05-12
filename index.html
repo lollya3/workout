@@ -290,7 +290,7 @@ input::placeholder{color:var(--text3)}
     <!-- Suggest button — shown when search is empty -->
     <div id="suggest-area">
       <div style="display:flex;gap:8px;margin-bottom:10px">
-        <select id="ses-loc" onchange="syncLoc()" style="font-size:14px;flex:1">
+        <select id="ses-loc" onchange="syncLoc();if(document.getElementById('suggestions-list').innerHTML.trim())getSuggestions();" style="font-size:14px;flex:1">
           <option value="all">🌐 All</option>
           <option value="gym">🏋️ Gym</option>
           <option value="home">🏠 Home</option>
@@ -1151,6 +1151,7 @@ function renderTodayCard() {
           return `<div id="${rowId}" style="display:flex;align-items:center;gap:8px;padding:4px 0">
             <span style="flex:1;font-size:13px;color:var(--text2)">${tag}${s2.sets}×${s2.reps} @ ${wl}</span>
             <button onclick="editTodaySet('${ses.id}',${eIdx},${si},'${rowId}')" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--accent);padding:2px 6px;font-family:inherit">Edit</button>
+            <button onclick="deleteTodaySet('${ses.id}',${eIdx},${si})" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--danger);padding:2px 6px;font-family:inherit">Del</button>
           </div>`;
         }).join('')}
         <div style="margin-top:6px">
@@ -1177,6 +1178,16 @@ function toggleTodayNote(eIdx) {
 function saveTodayNote(exId, eIdx) {
   const val = document.getElementById('note-edit-' + eIdx)?.value.trim();
   if (val !== undefined) saveExNote(exId, val);
+  renderTodayCard();
+}
+
+function deleteTodaySet(sesId, eIdx, sIdx) {
+  const s = sessions.find(x => x.id === sesId);
+  if (!s || !s.entries[eIdx]) return;
+  s.entries[eIdx].sets.splice(sIdx, 1);
+  if (!s.entries[eIdx].sets.length) s.entries.splice(eIdx, 1);
+  if (!s.entries.length) sessions = sessions.filter(x => x.id !== sesId);
+  save();
   renderTodayCard();
 }
 
@@ -1316,125 +1327,134 @@ function deleteCustomEx(id) {
 
 // ── MOTIVATION ─────────────────────────────────────────────
 const QUOTES = [
-  {text:"The pain you feel today will be the strength you feel tomorrow.", attr:"Arnold Schwarzenegger", color:"#1e3a2f", text_c:"#fff"},
-  {text:"Champions aren't made in gyms. Champions are made from something they have deep inside them — a desire, a dream, a vision.", attr:"Muhammad Ali", color:"#1a2a4a", text_c:"#fff"},
-  {text:"The only bad workout is the one that didn't happen.", attr:"Unknown", color:"#3a1e1e", text_c:"#fff"},
-  {text:"You don't have to be great to start, but you have to start to be great.", attr:"Zig Ziglar", color:"#1e2e3a", text_c:"#fff"},
-  {text:"Strength does not come from physical capacity. It comes from an indomitable will.", attr:"Mahatma Gandhi", color:"#2a1e3a", text_c:"#fff"},
-  {text:"The secret of getting ahead is getting started.", attr:"Mark Twain", color:"#1e3a2a", text_c:"#fff"},
-  {text:"It never gets easier, you just get stronger.", attr:"Unknown", color:"#3a2a1e", text_c:"#fff"},
-  {text:"Take care of your body. It's the only place you have to live.", attr:"Jim Rohn", color:"#1e3a38", text_c:"#fff"},
-  {text:"The difference between the impossible and the possible lies in a person's determination.", attr:"Tommy Lasorda", color:"#2a3a1e", text_c:"#fff"},
-  {text:"You have to believe in yourself when no one else does.", attr:"Serena Williams", color:"#1e2a3a", text_c:"#fff"},
-  {text:"Success is what comes after you stop making excuses.", attr:"Luis Galarza", color:"#3a1e2a", text_c:"#fff"},
-  {text:"The body achieves what the mind believes.", attr:"Napoleon Hill", color:"#1a3a1a", text_c:"#fff"},
-  {text:"Physical fitness is not only one of the most important keys to a healthy body, it is the basis of dynamic and creative intellectual activity.", attr:"John F. Kennedy", color:"#1e2a4a", text_c:"#fff"},
-  {text:"What hurts today makes you stronger tomorrow.", attr:"Jay Cutler", color:"#3a2a1a", text_c:"#fff"},
-  {text:"Once you are exercising regularly, the hardest thing is to stop it.", attr:"Erin Gray", color:"#1e3a2a", text_c:"#fff"},
-  {text:"If something stands between you and your success, move it. Never be denied.", attr:"Dwayne Johnson", color:"#2a1a3a", text_c:"#fff"},
-  {text:"To keep winning, I have to keep improving.", attr:"Steffi Graf", color:"#1a2a2a", text_c:"#fff"},
-  {text:"Don't wish for it. Work for it.", attr:"Unknown", color:"#2a1e1e", text_c:"#fff"},
-  {text:"Your body can stand almost anything. It's your mind you have to convince.", attr:"Unknown", color:"#1e3a30", text_c:"#fff"},
-  {text:"Motivation is what gets you started. Habit is what keeps you going.", attr:"Jim Ryun", color:"#1a1e3a", text_c:"#fff"},
-  // John Wooden
-  {text:"Success is peace of mind which is a direct result of self-satisfaction in knowing you did your best to become the best you are capable of becoming.", attr:"Coach John Wooden", color:"#2a1a3a", text_c:"#fff"},
-  {text:"Don't let what you cannot do interfere with what you can do.", attr:"Coach John Wooden", color:"#1e3a2a", text_c:"#fff"},
-  {text:"The most important thing in the world is family and love.", attr:"Coach John Wooden", color:"#3a1e2a", text_c:"#fff"},
-  {text:"Be more concerned with your character than your reputation, because your character is what you really are, while your reputation is merely what others think you are.", attr:"Coach John Wooden", color:"#1a2a3a", text_c:"#fff"},
-  {text:"It's the little details that are vital. Little things make big things happen.", attr:"Coach John Wooden", color:"#2a3a1e", text_c:"#fff"},
-  {text:"Failure is not fatal, but failure to change might be.", attr:"Coach John Wooden", color:"#1e2a3a", text_c:"#fff"},
-  {text:"Never mistake activity for achievement.", attr:"Coach John Wooden", color:"#3a2a1e", text_c:"#fff"},
-  {text:"Talent is God-given. Be humble. Fame is man-given. Be grateful. Conceit is self-given. Be careful.", attr:"Coach John Wooden", color:"#1e3a2f", text_c:"#fff"},
-  {text:"Do not let what you cannot do interfere with what you can do.", attr:"Coach John Wooden", color:"#2a1e3a", text_c:"#fff"},
-  {text:"The true test of a man's character is what he does when no one is watching.", attr:"Coach John Wooden", color:"#1a3a2a", text_c:"#fff"},
-  {text:"Make each day your masterpiece.", attr:"Coach John Wooden", color:"#3a1a1e", text_c:"#fff"},
-  {text:"Things turn out best for the people who make the best of the way things turn out.", attr:"Coach John Wooden", color:"#1e2a2a", text_c:"#fff"},
-  {text:"A player who makes a team great is more valuable than a great player.", attr:"Coach John Wooden", color:"#2a1a1e", text_c:"#fff"},
-  {text:"If you're not making mistakes, then you're not doing anything.", attr:"Coach John Wooden", color:"#1a2a1e", text_c:"#fff"},
-  {text:"What you are as a person is far more important than what you are as a basketball player.", attr:"Coach John Wooden", color:"#3a2a2a", text_c:"#fff"},
-  // Other great coaches
-  {text:"The vision of a champion is bent over, drenched in sweat, at the point of exhaustion, when nobody else is looking.", attr:"Anson Dorrance", color:"#1e3a38", text_c:"#fff"},
-  {text:"You win in the locker room first.", attr:"Pat Riley", color:"#2a1e2a", text_c:"#fff"},
-  {text:"Obstacles don't have to stop you. If you run into a wall, don't turn around and give up. Figure out how to climb it, go through it, or work around it.", attr:"Michael Jordan", color:"#1e2a3a", text_c:"#fff"},
-  {text:"Hard work beats talent when talent doesn't work hard.", attr:"Tim Notke", color:"#2a3a2a", text_c:"#fff"},
-  {text:"The more difficult the victory, the greater the happiness in winning.", attr:"Pelé", color:"#1a1e2a", text_c:"#fff"},
-  {text:"You are never really playing an opponent. You are playing yourself, your own highest standards, and when you reach your limits, that is real joy.", attr:"Arthur Ashe", color:"#3a1e1a", text_c:"#fff"},
-  {text:"Gold medals aren't really made of gold. They're made of sweat, determination, and a hard-to-find alloy called guts.", attr:"Dan Gable", color:"#1e3a1e", text_c:"#fff"},
-  {text:"The principle is competing against yourself. It's about self-improvement, about being better than you were the day before.", attr:"Steve Young", color:"#2a2a1e", text_c:"#fff"},
-  {text:"Show me a person who has never made a mistake and I'll show you somebody who has never achieved much.", attr:"Joan Benoit Samuelson", color:"#1a3a1a", text_c:"#fff"},
-  {text:"You can motivate by fear, and you can motivate by reward. But both those methods are only temporary. The only lasting thing is self-motivation.", attr:"Homer Rice", color:"#1e1a3a", text_c:"#fff"},
-  {text:"Champions keep playing until they get it right.", attr:"Billie Jean King", color:"#2a1a2a", text_c:"#fff"},
-  {text:"One man can be a crucial ingredient on a team, but one man cannot make a team.", attr:"Kareem Abdul-Jabbar", color:"#1a2a3a", text_c:"#fff"},
-  {text:"To uncover your true potential you must first find your own limits and then you have to have the courage to blow past them.", attr:"Picabo Street", color:"#3a2a1a", text_c:"#fff"},
-  {text:"Push yourself again and again. Don't give an inch until the final buzzer sounds.", attr:"Larry Bird", color:"#1e2a1e", text_c:"#fff"},
-  {text:"It's not the will to win that matters — everyone has that. It's the will to prepare to win that matters.", attr:"Bear Bryant", color:"#2a1e1a", text_c:"#fff"},
-  {text:"Age is no barrier. It's a limitation you put on your mind.", attr:"Jackie Joyner-Kersee", color:"#1a3a3a", text_c:"#fff"},
-  // Habit gurus
-  {text:"You do not rise to the level of your goals. You fall to the level of your systems.", attr:"James Clear, Atomic Habits", color:"#2a1a3a", text_c:"#fff"},
-  {text:"Every action you take is a vote for the type of person you wish to become.", attr:"James Clear, Atomic Habits", color:"#1a2a3a", text_c:"#fff"},
-  {text:"The most effective form of motivation is progress. When we get a signal that we are moving forward, we become more motivated to continue down that path.", attr:"James Clear", color:"#3a1e2a", text_c:"#fff"},
-  {text:"Habits are the compound interest of self-improvement.", attr:"James Clear, Atomic Habits", color:"#1e3a2a", text_c:"#fff"},
-  {text:"Success is the product of daily habits — not once-in-a-lifetime transformations.", attr:"James Clear", color:"#2a3a1e", text_c:"#fff"},
-  {text:"The secret of getting ahead is getting started.", attr:"Mark Twain", color:"#1a1e3a", text_c:"#fff"},
-  {text:"We are what we repeatedly do. Excellence, then, is not an act, but a habit.", attr:"Aristotle", color:"#3a2a1e", text_c:"#fff"},
-  {text:"First forget inspiration. Habit is more dependable. Habit will sustain you whether you're inspired or not.", attr:"Octavia Butler", color:"#1e2a3a", text_c:"#fff"},
-  // Famous leaders
-  {text:"Success is not final, failure is not fatal: it is the courage to continue that counts.", attr:"Winston Churchill", color:"#1a3a2a", text_c:"#fff"},
-  {text:"We don't have to be defined by the things we did or didn't do in our past.", attr:"Barack Obama", color:"#2a1e3a", text_c:"#fff"},
-  {text:"The future belongs to those who believe in the beauty of their dreams.", attr:"Eleanor Roosevelt", color:"#3a1a2a", text_c:"#fff"},
-  {text:"You gain strength, courage and confidence by every experience in which you really stop to look fear in the face.", attr:"Eleanor Roosevelt", color:"#1e3a1e", text_c:"#fff"},
-  {text:"It does not matter how slowly you go as long as you do not stop.", attr:"Confucius", color:"#2a2a1e", text_c:"#fff"},
-  {text:"Our greatest glory is not in never falling, but in rising every time we fall.", attr:"Confucius", color:"#1a2a2a", text_c:"#fff"},
-  {text:"Strength does not come from physical capacity. It comes from an indomitable will.", attr:"Mahatma Gandhi", color:"#3a1e1e", text_c:"#fff"},
-  {text:"The body achieves what the mind believes.", attr:"Napoleon Hill", color:"#1e1a2a", text_c:"#fff"},
-  {text:"Believe you can and you're halfway there.", attr:"Theodore Roosevelt", color:"#2a3a2a", text_c:"#fff"},
-  {text:"Do something today that your future self will thank you for.", attr:"Sean Patrick Flanery", color:"#1a3a1e", text_c:"#fff"},
-  // More athletes and coaches
-  {text:"The difference between a successful person and others is not a lack of strength, not a lack of knowledge, but rather a lack of will.", attr:"Vince Lombardi", color:"#3a2a2a", text_c:"#fff"},
-  {text:"Winners never quit and quitters never win.", attr:"Vince Lombardi", color:"#1e2a1a", text_c:"#fff"},
-  {text:"If you train hard, you'll not only be hard, you'll be hard to beat.", attr:"Herschel Walker", color:"#2a1a1e", text_c:"#fff"},
-  {text:"The only way to prove that you're a good sport is to lose.", attr:"Ernie Banks", color:"#1a1e2a", text_c:"#fff"},
-  {text:"You have to expect things of yourself before you can do them.", attr:"Michael Jordan", color:"#3a1a1a", text_c:"#fff"},
-  {text:"The more difficult the victory, the greater the happiness in winning.", attr:"Pelé", color:"#1e3a3a", text_c:"#fff"},
-  {text:"What makes something special is not just what you have to gain, but what you feel there is to lose.", attr:"Andre Agassi", color:"#2a1e2a", text_c:"#fff"},
-  {text:"I've missed more than 9,000 shots in my career. I've lost almost 300 games. I've failed over and over and over again in my life. And that is why I succeed.", attr:"Michael Jordan", color:"#1a2a1e", text_c:"#fff"},
-  {text:"You dream. You plan. You reach. There will be obstacles. There will be doubters. There will be mistakes. But with hard work, with belief, with confidence and trust in yourself and those around you, there are no limits.", attr:"Michael Phelps", color:"#2a3a1a", text_c:"#fff"},
-  {text:"Pain is temporary. It may last a minute, or an hour, or a day, or a year, but eventually it will subside and something else will take its place. If I quit, however, it lasts forever.", attr:"Lance Armstrong", color:"#1e1e3a", text_c:"#fff"},
-  {text:"The mind is the limit. As long as the mind can envision the fact that you can do something, you can do it.", attr:"Arnold Schwarzenegger", color:"#3a1e3a", text_c:"#fff"},
-  {text:"If something stands between you and your success, move it. Never be denied.", attr:"Dwayne Johnson", color:"#1a3a2a", text_c:"#fff"},
-  {text:"Wake up determined. Go to bed satisfied.", attr:"Dwayne Johnson", color:"#2a2a3a", text_c:"#fff"},
+  // BRAIN HEALTH & EXERCISE
+  {text:"Exercise is the single most powerful tool you have to optimize your brain function — more powerful than any drug.", attr:"John Ratey, MD, Harvard Medical School", color:"#1a2a4a", text_c:"#fff"},
+  {text:"A single workout increases levels of dopamine, serotonin, and noradrenaline — the same neurotransmitters targeted by antidepressants. The effect lasts for hours.", attr:"Neuroscience research", color:"#1e3a2f", text_c:"#fff"},
+  {text:"People who exercise regularly have a hippocampus that is 2% larger than sedentary people. That's the memory and learning center of the brain.", attr:"Kirk Erickson, University of Pittsburgh", color:"#2a1e3a", text_c:"#fff"},
+  {text:"Aerobic exercise triggers BDNF — brain-derived neurotrophic factor — which researchers call 'Miracle-Gro for the brain.' It builds new neural connections and protects against cognitive decline.", attr:"Exercise neuroscience research", color:"#1a3a2a", text_c:"#fff"},
+  {text:"Physical activity is one of the only known ways to generate new neurons in the adult brain. You are literally growing your brain when you exercise.", attr:"Wendy Suzuki, PhD, NYU", color:"#3a1e2a", text_c:"#fff"},
+  {text:"Just 20 minutes of moderate exercise can improve focus and cognitive performance for 2–3 hours afterward. It's a performance enhancer with no side effects.", attr:"Journal of Applied Physiology", color:"#1e2e3a", text_c:"#fff"},
+  {text:"Exercise reduces the brain's reactivity to stress. People who work out regularly show measurably smaller amygdala responses to threatening stimuli.", attr:"Stress neuroscience research", color:"#2a2a1a", text_c:"#fff"},
+  {text:"The cerebellum — long thought to only control movement — processes 40% of all cognitive signals. Every time you exercise your body, you are also training your thinking brain.", attr:"Neuroscience research", color:"#1a1a3a", text_c:"#fff"},
+  {text:"Regular exercise is associated with a 30–35% reduction in risk of depression and anxiety — comparable to medication for mild to moderate cases.", attr:"JAMA Psychiatry meta-analysis", color:"#2a1a2a", text_c:"#fff"},
+  {text:"Walking 20–30 minutes a day reduces dementia risk by up to 40%. The brain responds to movement at any age.", attr:"Alzheimer's research", color:"#1a3a1a", text_c:"#fff"},
+
+  // HYDRATION
+  {text:"By the time you feel thirsty, you're already 1–2% dehydrated — enough to impair concentration, mood, and physical performance. Thirst is a lagging indicator.", attr:"Exercise physiology research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"Water makes up about 75% of muscle tissue. Even mild dehydration causes muscles to cramp more easily, recover more slowly, and generate less force.", attr:"Sports medicine research", color:"#1e3a38", text_c:"#fff"},
+  {text:"Mild dehydration — just 2% of body weight — can reduce cognitive performance by 10–15% and increase perceived effort during exercise.", attr:"Human Performance Laboratory research", color:"#3a2a1e", text_c:"#fff"},
+  {text:"Drinking 500ml of water before a meal increases metabolic rate by 24–30% for about an hour. Hydration is metabolically active, not passive.", attr:"Journal of Clinical Endocrinology", color:"#1a2a2a", text_c:"#fff"},
+  {text:"The kidneys need water to filter waste products from muscle breakdown. After hard training, inadequate hydration slows recovery and increases soreness.", attr:"Sports nutrition research", color:"#2a1e1a", text_c:"#fff"},
+  {text:"Coffee and tea count toward daily fluid intake — the diuretic effect is minimal at moderate intake. But alcohol actively dehydrates and impairs muscle protein synthesis.", attr:"Hydration science research", color:"#1e2a1a", text_c:"#fff"},
+
+  // SLEEP
+  {text:"Sleep is the most effective thing we can do to reset our brain and body health each day. No aspect of our biology is left unscathed when sleep is deficient.", attr:"Matthew Walker, PhD — Why We Sleep", color:"#1a1e3a", text_c:"#fff"},
+  {text:"After one bad night of sleep, fat cells become 30% less responsive to insulin, cortisol spikes, and hunger hormones increase by up to 24%.", attr:"Sleep research, Matthew Walker, UC Berkeley", color:"#2a1e1e", text_c:"#fff"},
+  {text:"Human growth hormone — essential for muscle repair and recovery — is released primarily during deep sleep, peaking in the first half of the night.", attr:"Endocrinology research", color:"#1e1a2a", text_c:"#fff"},
+  {text:"Athletes who sleep 10 hours per night show faster sprint times, improved reaction times, and better accuracy. Sleep is a legal performance enhancer.", attr:"Stanford sleep research", color:"#1a2a1e", text_c:"#fff"},
+  {text:"Sleeping fewer than 6 hours per night for two weeks creates cognitive deficits equivalent to two full nights without sleep — but people don't feel impaired, which is the danger.", attr:"Matthew Walker, PhD", color:"#3a1a1a", text_c:"#fff"},
+  {text:"During deep sleep, the brain's glymphatic system activates and flushes out toxic waste proteins — including amyloid, linked to Alzheimer's. Sleep is your brain's cleaning cycle.", attr:"Nature Neuroscience", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Muscle is built during sleep, not during the workout. The workout creates the stimulus; sleep provides the environment for adaptation.", attr:"Exercise physiology research", color:"#2a3a1a", text_c:"#fff"},
+
+  // HABITS & BEHAVIOR CHANGE
+  {text:"You do not rise to the level of your goals. You fall to the level of your systems. Goals are about the results you want. Systems are about the processes that lead to those results.", attr:"James Clear — Atomic Habits", color:"#2a3a1e", text_c:"#fff"},
+  {text:"Every action you take is a vote for the type of person you wish to become. No single instance transforms your beliefs, but as the votes build up, so does the evidence.", attr:"James Clear — Atomic Habits", color:"#1a2a1e", text_c:"#fff"},
+  {text:"Habits are the compound interest of self-improvement. Small changes seem to make no difference until you cross a critical threshold. The results of good habits are always delayed.", attr:"James Clear — Atomic Habits", color:"#3a2a1e", text_c:"#fff"},
+  {text:"Missing once is an accident. Missing twice is the start of a new habit. The most important rule: never miss twice.", attr:"James Clear — Atomic Habits", color:"#1e3a2a", text_c:"#fff"},
+  {text:"We are what we repeatedly do. Excellence, then, is not an act, but a habit.", attr:"Aristotle", color:"#2a1a3a", text_c:"#fff"},
+  {text:"Motivation follows action — not the other way around. The hardest part is starting. Once you begin, momentum builds. Don't wait to feel motivated.", attr:"Behavioral psychology research", color:"#1a1a2a", text_c:"#fff"},
+  {text:"The two-minute rule: if a habit takes less than two minutes to start, do it now. You can always do more once you've begun. Starting is the hardest part.", attr:"James Clear — Atomic Habits", color:"#1e2a3a", text_c:"#fff"},
+  {text:"Habit stacking — attaching a new behavior to an existing one — is one of the most reliable ways to build consistency. 'After I pour my morning coffee, I will move for 10 minutes.'", attr:"BJ Fogg, Stanford Behavior Design Lab", color:"#3a1a2a", text_c:"#fff"},
+  {text:"Identity-based habits are more powerful than outcome-based ones. Instead of 'I want to lose weight,' try 'I am someone who moves their body every day.'", attr:"James Clear — Atomic Habits", color:"#1a3a2a", text_c:"#fff"},
+  {text:"Research on habit formation shows it takes 18 to 254 days to form a new habit — not the often-cited 21 days. Be patient. Consistency matters more than speed.", attr:"Phillippa Lally, University College London", color:"#2a2a3a", text_c:"#fff"},
+
+  // AGING & MUSCLE
+  {text:"After 30, adults lose 3–8% of muscle mass per decade without resistance training. After 60, that rate accelerates. Muscle is the organ of longevity.", attr:"Sports Medicine journal", color:"#1e2a2a", text_c:"#fff"},
+  {text:"Grip strength is one of the strongest predictors of all-cause mortality. Stronger hands reflect overall muscle health and correlate with longer life.", attr:"The Lancet — Global Burden of Disease Study", color:"#2a2a1e", text_c:"#fff"},
+  {text:"More muscle means a higher resting metabolism, better blood sugar regulation, and greater insulin sensitivity — at any age. Muscle is metabolically active tissue.", attr:"Endocrinology and metabolism research", color:"#1a3a3a", text_c:"#fff"},
+  {text:"Balance training reduces fall risk by up to 34% in older adults. Falls are the leading cause of injury-related death in people over 65. Balance is a trainable skill.", attr:"Cochrane Review — fall prevention", color:"#3a1e1e", text_c:"#fff"},
+  {text:"Strength training at any age preserves bone density, reduces osteoporosis risk, and maintains joint health. It is one of the most evidence-backed anti-aging interventions available.", attr:"Bone and joint research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"Sarcopenia — age-related muscle loss — begins as early as your 30s. The solution is resistance training and adequate protein. Both are entirely within your control.", attr:"Geriatric medicine research", color:"#2a1a1e", text_c:"#fff"},
+  {text:"People who are strong at 70 have significantly better cognitive function than weak peers of the same age. Physical strength and brain health are deeply connected.", attr:"Journal of Alzheimer's Disease", color:"#1e3a1e", text_c:"#fff"},
+  {text:"VO2 max — your aerobic capacity — declines about 10% per decade after 25 without training. Regular cardio can slow this decline dramatically and is one of the strongest predictors of longevity.", attr:"Cardiovascular research", color:"#2a3a2a", text_c:"#fff"},
+
+  // NUTRITION
+  {text:"Protein is not just for bodybuilders. Women over 50 need closer to 1g per pound of body weight daily to maintain muscle and bone density — significantly more than standard RDA guidelines suggest.", attr:"Geriatric nutrition research", color:"#2a3a2a", text_c:"#fff"},
+  {text:"The gut-brain axis is bidirectional. About 90% of serotonin is produced in the gut. What you eat directly influences your mood, energy, and cognitive clarity.", attr:"Neurogastroenterology research", color:"#1e3a1e", text_c:"#fff"},
+  {text:"Anti-inflammatory foods — berries, leafy greens, olive oil, fatty fish — directly reduce the chronic low-grade inflammation associated with aging, cognitive decline, and disease.", attr:"Nutritional epidemiology research", color:"#1a3a2a", text_c:"#fff"},
+  {text:"Creatine is one of the most studied supplements in sports science. It improves strength output, speeds recovery, and emerging research suggests it also supports brain function.", attr:"Journal of the International Society of Sports Nutrition", color:"#1e2a3a", text_c:"#fff"},
+  {text:"Magnesium is involved in over 300 enzymatic reactions in the body, including muscle contraction and nerve function. Most adults are deficient. Leafy greens, nuts, and seeds are the best sources.", attr:"Nutritional biochemistry research", color:"#3a2a2a", text_c:"#fff"},
+  {text:"Omega-3 fatty acids reduce muscle soreness and inflammation after exercise, support brain health, and lower cardiovascular disease risk. Fatty fish, walnuts, and flaxseed are top sources.", attr:"Nutritional and exercise science research", color:"#1a2a2a", text_c:"#fff"},
+  {text:"Eating protein within a few hours of resistance training doesn't need to be immediate — but total daily protein is what matters most for muscle repair and growth.", attr:"International Journal of Sport Nutrition", color:"#2a1e3a", text_c:"#fff"},
+
+  // EXERCISE SCIENCE
+  {text:"Progressive overload is the single most important principle in strength training. Every week, aim to lift a little more, do one more rep, or add one more set. Your body adapts to the demand you place on it.", attr:"Exercise science fundamentals", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Compound movements — squats, deadlifts, rows, presses — recruit multiple muscle groups simultaneously, trigger greater hormone response, and build functional strength that transfers to real life.", attr:"Strength training research", color:"#2a1e2a", text_c:"#fff"},
+  {text:"The mind-muscle connection is real. Consciously focusing on the muscle you're working increases activation by up to 22% compared to just moving the weight.", attr:"Journal of Strength and Conditioning Research", color:"#1a3a1a", text_c:"#fff"},
+  {text:"Muscle soreness (DOMS) peaks 24–72 hours after exercise and is caused by microscopic damage to muscle fibers — which then repair stronger. Soreness is not required for progress, but adaptation is happening either way.", attr:"Exercise physiology research", color:"#3a2a1a", text_c:"#fff"},
+  {text:"Rest periods between sets matter. Longer rests (2–3 minutes) lead to greater strength gains. Shorter rests (60 seconds) increase metabolic stress. Match your rest to your goal.", attr:"Strength and conditioning research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"Eccentric training — the lowering phase of a lift — produces greater muscle damage and adaptation than the concentric (lifting) phase. Slow down the lowering phase deliberately.", attr:"Journal of Applied Physiology", color:"#2a3a1e", text_c:"#fff"},
+  {text:"High-intensity interval training (HIIT) produces comparable cardiovascular adaptations to moderate-intensity steady-state cardio in significantly less time. Both have their place.", attr:"American Journal of Physiology", color:"#1e2a2a", text_c:"#fff"},
+  {text:"Flexibility and mobility are different things. Flexibility is passive range of motion. Mobility is active control through that range. Mobility is more relevant to functional movement and injury prevention.", attr:"Physical therapy and movement science", color:"#1a1e2a", text_c:"#fff"},
+  {text:"Warming up with dynamic movements — leg swings, arm circles, hip circles — is more effective than static stretching before exercise. Static stretching before a workout can temporarily reduce power output.", attr:"Sports science research", color:"#2a2a1e", text_c:"#fff"},
+  {text:"Zone 2 cardio — sustained moderate intensity where you can hold a conversation — is the foundation of aerobic fitness and metabolic health. It improves mitochondrial density and fat-burning efficiency.", attr:"Exercise physiology, Peter Attia MD", color:"#1a3a2a", text_c:"#fff"},
+
+  // RECOVERY
+  {text:"Recovery is not the absence of training — it is a deliberate part of the training process. Adaptation happens during rest, not during the workout itself.", attr:"Exercise physiology fundamentals", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Cold water immersion reduces muscle inflammation and perceived soreness after intense training. Even a cold shower can reduce next-day soreness measurably.", attr:"Sports recovery research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"Active recovery — light movement the day after hard training — increases blood flow, speeds removal of metabolic waste, and reduces soreness more effectively than complete rest.", attr:"Recovery science research", color:"#2a1a3a", text_c:"#fff"},
+  {text:"Heart rate variability (HRV) is one of the best measures of recovery readiness. High HRV means your nervous system is recovered and ready to train. Low HRV is a signal to go easier.", attr:"Sports science and wearable research", color:"#3a1e2a", text_c:"#fff"},
+  {text:"Foam rolling and self-myofascial release can improve range of motion and reduce soreness. It works primarily through neurological relaxation, not by 'breaking up fascia' as commonly believed.", attr:"Manual therapy research", color:"#1e2a1a", text_c:"#fff"},
+
+  // MENTAL HEALTH & MINDSET
+  {text:"Stress inoculation is real: moderate exercise stress trains the brain to respond more calmly to all other stressors. You become more emotionally resilient with every workout.", attr:"Stress physiology research", color:"#2a1a2a", text_c:"#fff"},
+  {text:"The brain cannot distinguish between a vivid mental rehearsal and actual physical practice. Mental imagery activates the same neural pathways as physical movement. Visualization works.", attr:"Sports psychology research", color:"#1a2a1a", text_c:"#fff"},
+  {text:"Self-compassion — treating yourself with the same kindness you'd give a friend — is more effective for long-term behavior change than self-criticism. Shame doesn't build habits. Kindness does.", attr:"Kristin Neff, PhD — Self-Compassion research", color:"#1e1e3a", text_c:"#fff"},
+  {text:"The way you talk to yourself during difficult exercise matters. Research shows that motivational self-talk ('I can do this') measurably improves endurance performance.", attr:"Sports psychology research", color:"#3a2a2a", text_c:"#fff"},
+  {text:"Exercise reduces the brain's reactivity to stress. Fit individuals show smaller cortisol spikes in response to psychological stressors and recover faster from them.", attr:"Psychoneuroendocrinology research", color:"#2a2a2a", text_c:"#fff"},
+  {text:"Social connection and movement are both independently predictive of longevity. Combining them — exercise classes, walking with a friend, team sports — amplifies both benefits.", attr:"Longevity and social science research", color:"#1a3a3a", text_c:"#fff"},
+
+  // POSTURE & MOVEMENT QUALITY
+  {text:"Sitting for more than 8 hours a day increases all-cause mortality risk by 60% — even in people who exercise. Breaking up sitting with movement every 30–60 minutes counteracts much of this risk.", attr:"Annals of Internal Medicine", color:"#2a1e1a", text_c:"#fff"},
+  {text:"The posterior chain — glutes, hamstrings, erector spinae — is chronically underactive in most people who sit for work. Weak posterior chains are the leading contributor to lower back pain.", attr:"Physical therapy and orthopedic research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"Breathing mechanics affect everything. Most people breathe into their chest. Diaphragmatic breathing — breathing into a 360-degree brace around the core — stabilizes the spine and improves movement quality.", attr:"Movement science and physical therapy", color:"#2a3a1a", text_c:"#fff"},
+  {text:"Foot strength matters more than most people realize. Weak foot intrinsics contribute to knee, hip, and lower back problems. Single-leg balance and calf raises are among the most important exercises you can do.", attr:"Biomechanics and orthopedic research", color:"#1e2a2a", text_c:"#fff"},
+
+  // HORMONES & METABOLISM
+  {text:"Resistance training increases insulin sensitivity for up to 24–48 hours after a session. This means your cells are better at absorbing glucose — critical for metabolic health and energy levels.", attr:"Endocrinology research", color:"#1a3a1e", text_c:"#fff"},
+  {text:"Cortisol — the stress hormone — is elevated by sleep deprivation, overtraining, and chronic psychological stress. High cortisol breaks down muscle tissue and promotes fat storage.", attr:"Endocrinology and stress research", color:"#3a1a2a", text_c:"#fff"},
+  {text:"Exercise is one of the most powerful regulators of blood sugar. A 15-minute walk after a meal can reduce the post-meal glucose spike by up to 30%.", attr:"Diabetes Care journal", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Testosterone — critical for muscle growth, energy, and mood in both men and women — is supported by resistance training, adequate sleep, and healthy body composition.", attr:"Endocrinology research", color:"#2a2a3a", text_c:"#fff"},
+
+  // LONGEVITY
+  {text:"The four pillars of longevity backed by the strongest evidence: exercise, sleep, nutrition, and social connection. No supplement or biohack comes close to these four.", attr:"Peter Attia, MD — Outlive", color:"#1a2a3a", text_c:"#fff"},
+  {text:"VO2 max is the single strongest predictor of longevity — stronger than smoking status, blood pressure, or blood sugar. Building and maintaining aerobic fitness is one of the best investments you can make.", attr:"JAMA Network Open, longevity research", color:"#2a1a3a", text_c:"#fff"},
+  {text:"Centenarians — people who live to 100 — share common traits: they move regularly (not necessarily intensely), eat mostly whole foods, sleep well, maintain social bonds, and have a sense of purpose.", attr:"Blue Zones research, Dan Buettner", color:"#1a3a2a", text_c:"#fff"},
+  {text:"Healthspan matters as much as lifespan. The goal isn't just to live longer — it's to maintain physical and cognitive function as long as possible. Exercise is the most powerful tool for both.", attr:"Longevity medicine research", color:"#3a2a1a", text_c:"#fff"},
+  {text:"The biological age of your cells can be different from your chronological age. Regular exercise, good sleep, and a low-inflammatory diet have all been shown to slow epigenetic aging.", attr:"Epigenetics and aging research", color:"#1e1a3a", text_c:"#fff"},
+
+  // SPECIFIC TRAINING TIPS
+  {text:"If you only had time for one exercise, the deadlift would be a strong candidate. It trains the entire posterior chain, core, and grip simultaneously — more muscles engaged than almost any other movement.", attr:"Strength training research", color:"#1a2a2a", text_c:"#fff"},
+  {text:"Pull-ups are one of the best indicators of functional upper body strength and are strongly correlated with longevity. If you can't do one, assisted variations are an excellent goal to work toward.", attr:"Functional fitness research", color:"#2a3a1a", text_c:"#fff"},
+  {text:"Planks train the core the way it's actually used in life — as a stabilizer, not a prime mover. A strong plank transfers to better performance in every lift and reduced back pain.", attr:"Core stability research", color:"#1e3a1a", text_c:"#fff"},
+  {text:"Balance exercises — single-leg stands, single-leg deadlifts — activate stabilizer muscles that bilateral exercises miss. They also challenge the nervous system in ways that maintain coordination as you age.", attr:"Neuromuscular research", color:"#2a1a1e", text_c:"#fff"},
+  {text:"Yoga and flexibility training improve proprioception — your body's sense of its own position in space. This reduces injury risk during other training and improves movement quality across the board.", attr:"Movement science research", color:"#1a2a1a", text_c:"#fff"},
+  {text:"The Romanian deadlift is one of the most effective exercises for the posterior chain and is accessible with dumbbells at home. Learning the hip hinge pattern is fundamental to healthy movement.", attr:"Strength training fundamentals", color:"#3a1a1e", text_c:"#fff"},
+  {text:"Resistance bands provide variable resistance — harder at peak contraction — which can complement free weights and is especially effective for shoulder and hip stabilizer work.", attr:"Resistance training research", color:"#1a2a3a", text_c:"#fff"},
+  {text:"The glute medius — on the outer hip — is one of the most underdeveloped muscles in sedentary adults. Weakness here causes knee valgus, IT band issues, and lower back pain. Clamshells and lateral band walks target it directly.", attr:"Physical therapy research", color:"#2a1e3a", text_c:"#fff"},
+  {text:"Breathing out on exertion — exhaling during the hard part of a lift — creates intra-abdominal pressure that protects the spine. It's a simple technique that dramatically improves safety under load.", attr:"Lifting mechanics and physical therapy", color:"#1e3a2a", text_c:"#fff"},
+  {text:"Laughter, gratitude, and positive social interaction all trigger dopamine and serotonin release — the same pathways activated by exercise. Emotional wellbeing and physical health are not separate systems.", attr:"Psychoneuroimmunology research", color:"#2a2a2a", text_c:"#fff"},
+  {text:"Time in nature — even 20 minutes in a park or garden — measurably lowers cortisol and blood pressure. Combining outdoor time with exercise amplifies the mental health benefits of both.", attr:"Environmental psychology research", color:"#1a3a1e", text_c:"#fff"},
+  {text:"The lymphatic system — which removes waste from tissues — has no pump of its own. Movement is the pump. Exercise, deep breathing, and even light walking are essential for lymphatic circulation.", attr:"Physiology research", color:"#1e2a1e", text_c:"#fff"},
+  {text:"Caffeine improves exercise performance by blocking adenosine receptors that signal fatigue. 3–6mg per kg of body weight, taken 30–60 minutes before exercise, is the evidence-based dose.", attr:"Sports nutrition research", color:"#2a1a2a", text_c:"#fff"},
+  {text:"Microplastics have been found in human blood, lungs, and placental tissue. Reducing plastic food and drink containers where possible is a simple harm-reduction step with emerging evidence.", attr:"Environmental health research", color:"#1a1e3a", text_c:"#fff"},
+  {text:"The immune system is strengthened by moderate regular exercise — but suppressed temporarily by extreme exertion. Consistent moderate training is more beneficial for immune function than occasional intense efforts.", attr:"Exercise immunology research", color:"#3a2a1e", text_c:"#fff"},
+  {text:"Sunlight exposure in the morning — within an hour of waking — sets your circadian rhythm, suppresses melatonin, boosts alertness, and improves sleep quality that night.", attr:"Circadian biology research, Andrew Huberman PhD", color:"#1a2a1a", text_c:"#fff"},
+  {text:"Your body has over 600 muscles. Resistance training that targets multiple muscle groups — not just the visible ones — maintains the structural integrity that keeps you moving freely as you age.", attr:"Anatomy and exercise science", color:"#2a3a2a", text_c:"#fff"},
+  {text:"The best exercise program is the one you will actually do consistently. Adherence beats perfection every time. A good routine you stick to is worth more than an optimal routine you abandon.", attr:"Behavioral exercise science", color:"#1a2a3a", text_c:"#fff"},
 ];
 
-const TIPS = [
-  {icon:"💪", title:"Progressive overload", body:"The single most important principle in strength training. Every week, try to lift a little more, do one more rep, or add one more set. Your body adapts — you have to keep challenging it."},
-  {icon:"😴", title:"Sleep is training", body:"Muscle is built during recovery, not during the workout itself. Aim for 7–9 hours. Poor sleep increases cortisol, reduces testosterone, and kills your motivation. It's not optional."},
-  {icon:"🥗", title:"Protein timing matters less than total intake", body:"Getting enough protein across the day matters far more than eating it immediately after a workout. Aim for 0.7–1g per pound of bodyweight daily."},
-  {icon:"💧", title:"Hydration and strength", body:"Even mild dehydration (2% of body weight) can reduce strength by up to 10%. Drink water before, during, and after your workout — not just when you feel thirsty."},
-  {icon:"🔥", title:"Warm up properly", body:"A proper warm-up increases blood flow, raises muscle temperature, and reduces injury risk. It doesn't have to be long — 5–10 minutes of light movement and dynamic stretches is enough."},
-  {icon:"🧠", title:"Mind-muscle connection", body:"Research shows that consciously focusing on the muscle you're working increases muscle activation. Don't just go through the motions — think about what you're contracting."},
-  {icon:"📅", title:"Consistency beats intensity", body:"Working out 3–4 times a week consistently for a year beats going all-out for 3 weeks and burning out. The best workout program is the one you'll actually stick to."},
-  {icon:"⚖️", title:"Rest days are not wasted days", body:"Muscles grow during rest, not during training. Skipping rest days leads to overtraining, which causes fatigue, poor performance, and increased injury risk. Rest is part of the plan."},
-  {icon:"🦵", title:"Don't skip legs", body:"Leg training stimulates more total muscle mass than any other workout. It also triggers more growth hormone release, which benefits your whole body — including upper body gains."},
-  {icon:"🧘", title:"Stretching after, not before", body:"Static stretching before a workout can temporarily reduce strength and power. Save the long holds for after your session. Before, stick to dynamic movement like leg swings and arm circles."},
-  {icon:"📈", title:"Track your workouts", body:"People who track their workouts make significantly more progress than those who don't. Just writing down what you did — and trying to beat it next time — is one of the most powerful tools in fitness."},
-  {icon:"🕐", title:"Short workouts count", body:"A 20-minute focused workout is infinitely better than no workout. Research shows even 10 minutes of vigorous exercise has measurable health benefits. Done is better than perfect."},
-  {icon:"🫀", title:"Strength training protects your heart", body:"Resistance training reduces blood pressure, improves cholesterol, and decreases cardiovascular risk — sometimes as effectively as cardio. You don't have to choose between strong and healthy."},
-  {icon:"🦴", title:"Bone density and lifting", body:"Strength training is one of the best things you can do for bone density, especially for women over 50. Weight-bearing exercise stimulates bone formation and reduces osteoporosis risk significantly."},
-  {icon:"⚡", title:"Compound movements first", body:"Do your biggest, most demanding exercises — squats, deadlifts, bench press, rows — at the start of your workout when you have the most energy. Save isolation work for the end."},
-  {icon:"🔄", title:"The two-minute rule", body:"If a habit takes less than two minutes to start, do it now. Can't get to the gym? Do two minutes of movement at home. Starting is the hardest part — once you begin, you usually keep going."},
-  {icon:"🎯", title:"Identity-based habits", body:"The most lasting change comes from shifting how you see yourself. Instead of 'I'm trying to exercise,' say 'I'm someone who moves every day.' Your habits follow your identity."},
-  {icon:"📌", title:"Habit stacking", body:"Attach a new habit to an existing one. 'After I pour my morning coffee, I will do 10 minutes of movement.' Linking new behaviors to established ones dramatically increases follow-through."},
-  {icon:"🌱", title:"Small consistent beats big occasional", body:"1% better every day compounds to 37x better over a year. 1% worse every day compounds to nearly zero. The gap between where you are and where you want to be is built one small decision at a time."},
-  {icon:"🏋️", title:"Strength training and aging", body:"After 30, adults lose 3-8% of muscle mass per decade without resistance training. After 60 that rate accelerates. Lifting weights isn't just about looking good — it's the most powerful anti-aging tool available."},
-  {icon:"🧬", title:"Exercise changes your brain", body:"Regular exercise increases BDNF — brain-derived neurotrophic factor — which strengthens neural connections, improves memory, and reduces anxiety and depression. Your workout is literally making you smarter."},
-  {icon:"⏰", title:"The best time to work out", body:"The best time to exercise is whenever you'll actually do it. Morning workouts have a slight edge for consistency since willpower hasn't been depleted yet — but an evening workout beats no workout every time."},
-  {icon:"🔁", title:"Never miss twice", body:"Missing one workout happens to everyone. Missing two in a row is the start of a new habit. The rule is simple: you can miss once, but never twice. One bad day doesn't break you — quitting does."},
-  {icon:"💬", title:"Talk to yourself like a coach", body:"Research shows that referring to yourself by name or saying 'you can do this' rather than 'I can do this' creates psychological distance that improves performance under pressure. Be your own best coach."},
-  {icon:"🎭", title:"Motivation follows action", body:"Waiting to feel motivated before you start is backwards. Action creates motivation, not the other way around. Start before you're ready. The feeling of momentum comes after you begin, not before."},
-  {icon:"🌊", title:"Recovery is where progress happens", body:"Training breaks muscle down. Sleep, nutrition, and rest days build it back stronger. Without recovery, you're just accumulating damage. A hard training week with poor recovery beats a moderate week with good recovery."},
-];
 
-// Track recently shown quote authors to avoid repeats
 let recentQuoteAttrs = [];
 
 function pickQuote() {
@@ -1447,29 +1467,12 @@ function pickQuote() {
 }
 
 function renderMotivation() {
-  const allContent = [
-    ...QUOTES.map(q => ({type:'quote', ...q})),
-    ...TIPS.map(t => ({type:'tip', ...t})),
-  ];
-  // Pick 1 quote (author-aware) and 1 random tip each time
   const q = pickQuote();
-  const t = TIPS[Math.floor(Math.random() * TIPS.length)];
-
   const today = localDate();
-  const todaySes = sessions.filter(s => s.date === today);
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekSessions = sessions.filter(s => new Date(s.date+'T12:00:00') >= weekStart).length;
   const streak = calcStreak();
 
   document.getElementById('motiv-content').innerHTML = `
-    <div class="motiv-card" style="background:${q.color};color:${q.text_c}">
-      <div style="position:absolute;inset:0;opacity:.06;font-size:180px;line-height:1;font-family:'DM Serif Display',serif;display:flex;align-items:flex-start;padding:10px 16px;pointer-events:none;user-select:none">&ldquo;</div>
-      <span class="motiv-tag" style="background:rgba(255,255,255,.15);color:${q.text_c}">Quote</span>
-      <div class="motiv-quote" style="color:${q.text_c}">${q.text}</div>
-      <div class="motiv-attr" style="color:${q.text_c}">— ${q.attr}</div>
-    </div>
-
+    <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--text);margin-bottom:16px;padding-top:4px">Set Your Intention</div>
 
     <div class="card" style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -1487,20 +1490,20 @@ function renderMotivation() {
         </div>
       </div>
       <div id="goal-edit-view" style="margin-top:6px">
-        <div style="font-size:13px;color:var(--text2);margin-bottom:10px">What do you want to accomplish in today&#39;s session?</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:10px">What do you want to accomplish today?</div>
         <textarea id="daily-goal-input" placeholder="e.g. Do 3 sets of push-ups with good form, increase my squat weight by 5 lbs..." style="font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px;width:100%;outline:none;resize:none;height:90px;line-height:1.5"></textarea>
         <button class="btn btn-g" id="set-goal-btn" onclick="saveDailyGoal()" style="width:100%;margin-top:10px">&#127919; Set goal</button>
       </div>
     </div>
 
-    <div class="motiv-tip-card">
-      <div class="motiv-tip-icon">${t.icon}</div>
-      <div class="motiv-tip-title">${t.title}</div>
-      <div class="motiv-tip-body">${t.body}</div>
+    <div class="motiv-card" style="background:${q.color};color:${q.text_c};margin-bottom:12px">
+      <div style="position:absolute;inset:0;opacity:.06;font-size:180px;line-height:1;font-family:'DM Serif Display',serif;display:flex;align-items:flex-start;padding:10px 16px;pointer-events:none;user-select:none">&ldquo;</div>
+      <div class="motiv-quote" style="color:${q.text_c}">${q.text}</div>
+      <div class="motiv-attr" style="color:${q.text_c}">— ${q.attr}</div>
     </div>
 
     <div class="motiv-refresh">
-      <button class="btn btn-sm" onclick="renderMotivation()" style="color:var(--text2)">&#8635; New quote &amp; tip</button>
+      <button class="btn btn-sm" onclick="renderMotivation()" style="color:var(--text2)">&#8635; New quote</button>
     </div>
   `;
 }
@@ -1665,6 +1668,15 @@ function initCoach() {
   // No-op — Coach is now suggestion-based, not Q&A driven
 }
 
+function toggleSuggestions() {
+  const body = document.getElementById('sug-list-body');
+  const chev = document.getElementById('sug-list-chev');
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (chev) chev.innerHTML = open ? '&#9660;' : '&#9650;';
+}
+
 function getSuggestions() {
   const loc = document.getElementById('ses-loc')?.value || 'all';
   const recentCats = getRecentlyTrainedCats();
@@ -1714,7 +1726,13 @@ function getSuggestions() {
     ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px">${msgs.join(' · ')}</div>`
     : '';
 
-  el.innerHTML = contextMsg + picked.map(ex => {
+  const locLabel = {all:'All locations', gym:'Gym', home:'Home', travel:'Traveling'}[loc] || loc;
+  el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer" onclick="toggleSuggestions()">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--text2)">Suggested for ' + locLabel + ' (' + picked.length + ')</div>'
+    + '<span id="sug-list-chev" style="font-size:12px;color:var(--text3)">&#9650;</span>'
+    + '</div>'
+    + '<div id="sug-list-body">'
+    + contextMsg + picked.map(ex => {
     return `<div id="sug-row-${ex.id}" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="selectSuggestion('${ex.id}')">
       <div>
         <div style="font-size:16px;font-weight:600;color:#111">${ex.name}</div>
@@ -1722,7 +1740,7 @@ function getSuggestions() {
       </div>
       <span style="font-size:22px;color:var(--accent)">+</span>
     </div>`;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 let suggestPanelOpen = true;
@@ -1801,7 +1819,12 @@ function updateSugHint() {
   else hint.textContent = '';
 }
 
+let _savingSuggestion = false;
+
 function saveSuggestion(exId) {
+  if (_savingSuggestion) return;
+  _savingSuggestion = true;
+  setTimeout(() => { _savingSuggestion = false; }, 2000);
   const ex = EX.find(e => e.id === exId);
   if (!ex) return;
   const sets = parseInt(document.getElementById('sg-sets')?.value) || 3;
@@ -1910,7 +1933,13 @@ function updateInlineHint() {
   else hint.textContent = '';
 }
 
+let _savingInline = false;
+
 function saveInlineSet(exId) {
+  if (_savingInline) return; // prevent double-tap
+  _savingInline = true;
+  setTimeout(() => { _savingInline = false; }, 2000);
+
   const ex = EX.find(e => e.id === exId);
   if (!ex) return;
   const sets = parseInt(document.getElementById('il-sets')?.value) || 3;
@@ -1932,13 +1961,16 @@ function saveInlineSet(exId) {
   save();
   favorites.add(exId);
   saveFavorites();
-  // Save note if entered
   const noteVal = document.getElementById('il-note')?.value.trim();
   if (noteVal !== undefined) saveExNote(exId, noteVal);
-    '<div style="color:var(--accent);font-weight:600;font-size:14px;padding:8px 0">✓ ' + ex.name + ' logged!</div>';
+  document.getElementById('ex-search').value = '';
+  const el = document.getElementById('smart-search-results');
+  if (el) el.innerHTML = '<div style="color:var(--accent);font-weight:600;font-size:14px;padding:8px 0">✓ ' + ex.name + ' logged!</div>';
+  const suggestArea = document.getElementById('suggest-area');
+  if (suggestArea) suggestArea.style.display = 'block';
   setTimeout(() => {
-    const el = document.getElementById('smart-search-results');
-    if (el) el.innerHTML = '';
+    const el2 = document.getElementById('smart-search-results');
+    if (el2) el2.innerHTML = '';
   }, 2000);
   renderTodayCard();
 }
