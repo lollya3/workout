@@ -1111,6 +1111,7 @@ function exCardHTML(e) {
 }
 
 let loggedListOpen = true;
+let healthTrackingOpen = false;
 
 function toggleLoggedList() {
   loggedListOpen = !loggedListOpen;
@@ -3499,19 +3500,53 @@ function toggleAllPRs() {
 }
 
 // ── WEIGHT TRACKING ────────────────────────────────────────
+function deleteWeightEntry(date) {
+  const data = getWeightData().filter(w => w.date !== date);
+  localStorage.setItem('wt-weight-log', JSON.stringify(data));
+  renderDashboard();
+}
+
+function editWeightEntry(date) {
+  const row = document.getElementById('weight-row-' + date);
+  if (!row) return;
+  const data = getWeightData();
+  const entry = data.find(w => w.date === date);
+  if (!entry) return;
+  row.innerHTML = '<div style="flex:1;display:flex;gap:6px;align-items:center">'
+    + '<input type="number" id="wedit-' + date + '" value="' + entry.weight + '" step="0.1" style="font-size:15px;padding:7px;width:90px">'
+    + '<span style="font-size:12px;color:var(--text3)">lbs</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px">'
+    + '<button onclick="saveWeightEdit(\'' + date + '\')" class="btn btn-sm btn-g">✓ Save</button>'
+    + '<button onclick="renderDashboard()" class="btn btn-sm">Cancel</button>'
+    + '</div>';
+}
+
+function saveWeightEdit(date) {
+  const val = parseFloat(document.getElementById('wedit-' + date)?.value);
+  if (!val || val < 50 || val > 500) return;
+  const data = getWeightData();
+  const entry = data.find(w => w.date === date);
+  if (entry) entry.weight = val;
+  localStorage.setItem('wt-weight-log', JSON.stringify(data));
+  renderDashboard();
+}
+
 function getWeightData() {
   try { return JSON.parse(localStorage.getItem('wt-weight-log') || '[]'); } catch(e) { return []; }
 }
 function logWeight() {
   const val = parseFloat(document.getElementById('weight-input')?.value);
   if (!val || val < 50 || val > 500) return;
+  const date = document.getElementById('weight-date-input')?.value || localDate();
   const data = getWeightData();
-  const today = localDate();
-  const existing = data.findIndex(w => w.date === today);
+  const existing = data.findIndex(w => w.date === date);
   if (existing >= 0) data[existing].weight = val;
-  else data.push({date: today, weight: val});
+  else data.push({date, weight: val});
   data.sort((a,b) => a.date.localeCompare(b.date));
   localStorage.setItem('wt-weight-log', JSON.stringify(data));
+  const btn = document.querySelector('[onclick="logWeight()"]');
+  if (btn) { btn.textContent = '✓ Saved'; setTimeout(() => { btn.textContent = 'Log'; }, 1500); }
   renderDashboard();
 }
 
@@ -3607,14 +3642,85 @@ function saveGlucoseEdit(id) {
 }
 
 // ── HEALTH TRACKING TOGGLE ─────────────────────────────────
-let healthTrackingOpen = false;
-
 function toggleHealthTracking() {
   healthTrackingOpen = !healthTrackingOpen;
   const el = document.getElementById('health-tracking-body');
   const chev = document.getElementById('health-tracking-chev');
   if (el) el.style.display = healthTrackingOpen ? 'block' : 'none';
   if (chev) chev.innerHTML = healthTrackingOpen ? '&#9650;' : '&#9660;';
+}
+
+// ── LINE GRAPH ─────────────────────────────────────────────
+function makeLineGraph(points, opts) {
+  // points: [{x: date string, y: number, label: string}]
+  // opts: {width, height, color, yLabel, xLabel, yFormat}
+  if (!points || points.length < 2) return '<div style="font-size:13px;color:var(--text3);text-align:center;padding:16px 0">Log more entries to see your trend</div>';
+
+  const W = 100; // use percentage viewBox
+  const H = 60;
+  const pad = {top: 6, right: 4, bottom: 20, left: 28};
+  const gW = W - pad.left - pad.right;
+  const gH = H - pad.top - pad.bottom;
+
+  const ys = points.map(p => p.y);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const rangeY = maxY - minY || 1;
+
+  const color = opts.color || '#534AB7';
+  const yFormat = opts.yFormat || (v => v);
+
+  // Normalize points to SVG coords
+  const mapped = points.map((p, i) => {
+    const x = pad.left + (i / (points.length - 1)) * gW;
+    const y = pad.top + gH - ((p.y - minY) / rangeY) * gH;
+    return {x, y, raw: p};
+  });
+
+  const pathD = mapped.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const areaD = `${pathD} L ${mapped[mapped.length-1].x.toFixed(1)} ${(pad.top + gH).toFixed(1)} L ${mapped[0].x.toFixed(1)} ${(pad.top + gH).toFixed(1)} Z`;
+
+  // Y axis labels
+  const yTicks = [minY, (minY + maxY) / 2, maxY].map((v, i) => {
+    const y = pad.top + gH - ((v - minY) / rangeY) * gH;
+    return `<text x="${(pad.left - 2).toFixed(1)}" y="${y.toFixed(1)}" font-size="4" fill="#888" text-anchor="end" dominant-baseline="middle">${yFormat(Math.round(v * 10) / 10)}</text>`;
+  }).join('');
+
+  // X axis labels — show first, middle, last
+  const xIdxs = [0, Math.floor((points.length - 1) / 2), points.length - 1];
+  const xLabels = xIdxs.map(i => {
+    const p = mapped[i];
+    const d = new Date(points[i].x + 'T12:00:00');
+    const label = d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+    return `<text x="${p.x.toFixed(1)}" y="${(pad.top + gH + 7).toFixed(1)}" font-size="4" fill="#888" text-anchor="middle">${label}</text>`;
+  }).join('');
+
+  // Dots for recent/notable points — last point always shown
+  const dots = mapped.slice(-1).map(p =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2" fill="${color}"/>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible;display:block">
+    <defs>
+      <linearGradient id="lg-${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.3"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    <!-- Grid lines -->
+    <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${pad.top + gH}" stroke="#eee" stroke-width="0.5"/>
+    <line x1="${pad.left}" y1="${pad.top + gH}" x2="${pad.left + gW}" y2="${pad.top + gH}" stroke="#eee" stroke-width="0.5"/>
+    <line x1="${pad.left}" y1="${(pad.top + gH/2).toFixed(1)}" x2="${pad.left + gW}" y2="${(pad.top + gH/2).toFixed(1)}" stroke="#eee" stroke-width="0.3" stroke-dasharray="1,1"/>
+    <!-- Area fill -->
+    <path d="${areaD}" fill="url(#lg-${color.replace('#','')})" />
+    <!-- Line -->
+    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- Dots -->
+    ${dots}
+    <!-- Labels -->
+    ${yTicks}
+    ${xLabels}
+  </svg>`;
 }
 
 function renderDashboard() {
@@ -3835,21 +3941,13 @@ function renderDashboard() {
         // Week comparison
         + '<div style="font-size:14px;color:var(--text2);margin-bottom:14px;font-weight:500">' + weekCompare + '</div>'
 
-        // Last 7 days bar chart
-        + '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">Last 7 days</div>'
-        + '<div style="display:flex;gap:4px;align-items:flex-end;height:60px;margin-bottom:4px">'
-        + last7.map(d => {
-            const h = d.secs ? Math.max(8, Math.round((d.secs / maxSecs) * 52)) : 4;
-            const isToday = d.date === today;
-            const color = isToday ? 'var(--accent)' : d.secs ? 'rgba(83,74,183,0.4)' : 'var(--border)';
-            return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
-              + '<div style="font-size:10px;color:var(--text3);margin-bottom:2px">' + (d.secs ? formatPlankTime(d.secs) : '') + '</div>'
-              + '<div style="width:100%;background:' + color + ';border-radius:3px 3px 0 0;height:' + h + 'px"></div>'
-              + '</div>';
-          }).join('')
+        // Plank line graph - all records over time
+        + '<div style="padding:4px 0 12px">'
+        + makeLineGraph(
+            [...records].sort((a,b) => a.date.localeCompare(b.date)).map(r => ({x: r.date, y: r.secs})),
+            {color:'#534AB7', yFormat: v => formatPlankTime(Math.round(v))}
+          )
         + '</div>'
-        + '<div style="display:flex;gap:4px">'
-        + last7.map(d => '<div style="flex:1;text-align:center;font-size:11px;color:' + (d.date === today ? 'var(--accent)' : 'var(--text3)') + ';font-weight:' + (d.date === today ? '700' : '400') + '">' + d.label + '</div>').join('')
         // Records list
         + '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:10px">'
         + '<div onclick="togglePlankRecords()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">'
@@ -3885,22 +3983,8 @@ function renderDashboard() {
       const first = sorted[0];
       const last = sorted[sorted.length-1];
       const change = (first && last && first !== last) ? (last.weight - first.weight).toFixed(1) : null;
-      const bars = recent.length > 1 ? (() => {
-        const min = Math.min(...recent.map(w => w.weight));
-        const max = Math.max(...recent.map(w => w.weight));
-        const range = max - min || 1;
-        const step = Math.max(1, Math.floor(recent.length / 60));
-        const pts = recent.filter((_,i) => i % step === 0 || i === recent.length-1);
-        return '<svg width="100%" height="80" style="overflow:visible">'
-          + '<polyline points="' + pts.map((w,i) => {
-              const x = (i / (pts.length-1)) * 100;
-              const y = 75 - ((w.weight - min) / range) * 65;
-              return x + '% ' + y;
-            }).join(' ') + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>'
-          + '<text x="0" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans">' + min + ' lbs</text>'
-          + '<text x="100%" y="78" font-size="10" fill="var(--text3)" font-family="DM Sans" text-anchor="end">' + max + ' lbs</text>'
-          + '</svg>';
-      })() : '';
+      const weightPoints = sorted.map(w => ({x: w.date, y: w.weight}));
+      const weightGraph = makeLineGraph(weightPoints, {color:'#534AB7', yFormat: v => v + ''});
 
       // Water data
       const cups = getWaterToday();
@@ -3915,25 +3999,48 @@ function renderDashboard() {
       return '<div class="card" style="margin-bottom:12px">'
         + '<div onclick="toggleHealthTracking()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:0">'
         + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">🏥 Health Tracking</div>'
-        + '<span id="health-tracking-chev" style="font-size:13px;color:var(--text3)">&#9660;</span>'
+        + '<span id="health-tracking-chev" style="font-size:13px;color:var(--text3)">' + (healthTrackingOpen ? '&#9650;' : '&#9660;') + '</span>'
         + '</div>'
-        + '<div id="health-tracking-body" style="display:none;margin-top:14px">'
+        + '<div id="health-tracking-body" style="display:' + (healthTrackingOpen ? 'block' : 'none') + ';margin-top:14px">'
 
         // WEIGHT
         + '<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">'
         + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:10px">⚖️ Weight</div>'
         + '<div style="display:flex;gap:8px;margin-bottom:12px;align-items:flex-end">'
-        + '<div style="flex:1"><span class="lbl">Today\'s weight (lbs)</span>'
+        + '<div style="flex:2"><span class="lbl">Weight (lbs)</span>'
         + '<input type="number" id="weight-input" step="0.1" placeholder="e.g. 134.5" value="' + (todayEntry?.weight || '') + '" style="font-size:16px;padding:10px 12px">'
         + '</div>'
-        + '<button onclick="logWeight()" class="btn btn-g" style="padding:10px 16px;font-size:15px;margin-bottom:0">Log</button>'
+        + '<div style="flex:2"><span class="lbl">Date</span>'
+        + '<input type="date" id="weight-date-input" value="' + today + '" style="font-size:15px;padding:10px 12px">'
+        + '</div>'
+        + '<button onclick="logWeight()" class="btn btn-g" style="padding:10px 16px;font-size:15px;margin-bottom:0;flex-shrink:0">Log</button>'
         + '</div>'
         + (change !== null ? '<div style="display:flex;gap:10px;margin-bottom:12px">'
           + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Start</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + first.weight + '</div></div>'
           + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Current</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--text)">' + last.weight + '</div></div>'
           + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center"><div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Change</div><div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:' + (parseFloat(change) < 0 ? '#3B6D11' : parseFloat(change) > 0 ? 'var(--danger)' : 'var(--text)') + '">' + (parseFloat(change) > 0 ? '+' : '') + change + '</div></div>'
           + '</div>' : '')
-        + (bars ? '<div style="padding:4px 0">' + bars + '</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Log your weight to see your trend</div>')
+        + (sorted.length > 0 ? '<div style="margin-bottom:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--r);display:flex;justify-content:space-between;align-items:center">'
+          + '<div style="font-size:13px;color:var(--text3)">Today</div>'
+          + '<div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:var(--accent)">' + (todayEntry ? todayEntry.weight + ' lbs' : '—') + '</div>'
+          + '</div>' : '')
+        + (sorted.length > 1 ? '<div style="padding:8px 0">' + weightGraph + '</div>' : sorted.length === 1 ? '<div style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Log again tomorrow to see your trend</div>' : '<div style="font-size:13px;color:var(--text3);text-align:center;padding:8px 0">Log your weight to see your trend</div>')
+        + (sorted.length ? '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">'
+          + '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">All entries</div>'
+          + '<div style="max-height:200px;overflow-y:auto">'
+          + [...sorted].reverse().map(function(w) {
+              const d = new Date(w.date + 'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+              return '<div id="weight-row-' + w.date + '" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">'
+                + '<div style="flex:1">'
+                + '<div style="font-family:\'DM Serif Display\',serif;font-size:20px;color:var(--accent)">' + w.weight + ' <span style="font-size:13px;color:var(--text3)">lbs</span></div>'
+                + '<div style="font-size:12px;color:var(--text3)">' + d + '</div>'
+                + '</div>'
+                + '<div style="display:flex;gap:6px">'
+                + '<button onclick="editWeightEntry(\'' + w.date + '\')" class="btn btn-sm" style="font-size:11px">Edit</button>'
+                + '<button onclick="deleteWeightEntry(\'' + w.date + '\')" class="btn btn-sm" style="font-size:11px;color:var(--danger);border-color:var(--danger)">Del</button>'
+                + '</div></div>';
+            }).join('')
+          + '</div></div>' : '')
         + '</div>'
 
         // WATER
@@ -3961,6 +4068,10 @@ function renderDashboard() {
         + '</div>'
         + '<div style="margin-bottom:10px"><span class="lbl">Notes (optional)</span><input type="text" id="glucose-notes" placeholder="e.g. had fries, skipped breakfast..." style="font-size:15px;padding:10px 12px"></div>'
         + '<button onclick="logGlucose()" class="btn btn-g" style="width:100%;font-size:15px;padding:10px;margin-bottom:14px">Log reading</button>'
+        + (glucoseData.length > 1 ? '<div style="padding:8px 0 12px">' + makeLineGraph(
+            [...glucoseData].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time)).map(g => ({x: g.date, y: g.value})),
+            {color:'#dc2626', yFormat: v => v + ''}
+          ) + '</div>' : '')
         + (glucoseData.length ? '<div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px">All readings</div>'
           + '<div style="max-height:300px;overflow-y:auto">'
           + [...glucoseData].reverse().map(function(g) {
