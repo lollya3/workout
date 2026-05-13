@@ -2335,7 +2335,8 @@ function renderDaily() {
 
     // Regular exercise card
     if (dailyEditMode) {
-      return '<div style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px">'
+      return '<div data-idx="' + idx + '" class="daily-drag-item" style="background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;touch-action:none;user-select:none">'
+        + '<div class="drag-handle" style="font-size:20px;color:var(--text3);cursor:grab;padding:0 4px;flex-shrink:0">&#9776;</div>'
         + '<div style="flex:1">'
         + '<div style="font-size:15px;font-weight:600;color:#111;margin-bottom:6px">' + ex.name + '</div>'
         + '<input type="text" id="dur-' + idx + '" value="' + item.dur + '" style="font-size:14px;padding:6px 10px;width:100%;margin-bottom:6px" placeholder="Duration e.g. 30 sec">'
@@ -2371,6 +2372,94 @@ function renderDaily() {
     + (!dailyEditMode ? '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="resetDailyChecks()" style="color:var(--text3)">&#8635; Reset checks</button></div>' : '');
 
   if (allDone) setTimeout(launchFireworks, 50);
+  if (dailyEditMode) setTimeout(initDailyDrag, 50);
+}
+
+function initDailyDrag() {
+  const items = document.querySelectorAll('.daily-drag-item');
+  let dragging = null;
+  let startY = 0;
+  let origIdx = -1;
+  let placeholder = null;
+
+  items.forEach(item => {
+    const handle = item.querySelector('.drag-handle');
+    if (!handle) return;
+
+    handle.addEventListener('touchstart', e => {
+      e.preventDefault();
+      dragging = item;
+      origIdx = parseInt(item.dataset.idx);
+      startY = e.touches[0].clientY;
+
+      // Style dragging item
+      item.style.opacity = '0.5';
+      item.style.boxShadow = '0 8px 24px rgba(0,0,0,.2)';
+      item.style.zIndex = '100';
+      item.style.position = 'relative';
+
+      // Create placeholder
+      placeholder = document.createElement('div');
+      placeholder.style.cssText = 'height:' + item.offsetHeight + 'px;background:var(--alight);border:2px dashed var(--accent);border-radius:12px;margin-bottom:8px';
+      item.parentNode.insertBefore(placeholder, item.nextSibling);
+    }, {passive: false});
+
+    handle.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      e.preventDefault();
+      const y = e.touches[0].clientY;
+      const dy = y - startY;
+      dragging.style.transform = `translateY(${dy}px)`;
+
+      // Find which item we're hovering over
+      const siblings = [...document.querySelectorAll('.daily-drag-item')].filter(el => el !== dragging);
+      const draggingRect = dragging.getBoundingClientRect();
+      const draggingCenter = draggingRect.top + draggingRect.height / 2 + dy;
+
+      let target = null;
+      let insertBefore = true;
+      for (const sib of siblings) {
+        const rect = sib.getBoundingClientRect();
+        const sibCenter = rect.top + rect.height / 2;
+        if (Math.abs(draggingCenter - sibCenter) < rect.height * 0.6) {
+          target = sib;
+          insertBefore = draggingCenter < sibCenter;
+          break;
+        }
+      }
+
+      if (target && placeholder) {
+        if (insertBefore) target.parentNode.insertBefore(placeholder, target);
+        else target.parentNode.insertBefore(placeholder, target.nextSibling);
+      }
+    }, {passive: false});
+
+    handle.addEventListener('touchend', e => {
+      if (!dragging) return;
+
+      // Reset styles
+      dragging.style.opacity = '';
+      dragging.style.boxShadow = '';
+      dragging.style.zIndex = '';
+      dragging.style.position = '';
+      dragging.style.transform = '';
+
+      // Reorder the actual list based on DOM order
+      if (placeholder) {
+        dragging.parentNode.insertBefore(dragging, placeholder);
+        placeholder.remove();
+        placeholder = null;
+      }
+
+      // Read new order from DOM and save
+      const newOrder = [...document.querySelectorAll('.daily-drag-item')].map(el => parseInt(el.dataset.idx));
+      const list = loadDailyList();
+      const reordered = newOrder.map(i => list[i]);
+      saveDailyList(reordered);
+      dragging = null;
+      renderDaily();
+    });
+  });
 }
 
 function applyEditItem(idx) {
