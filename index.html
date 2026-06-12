@@ -1136,12 +1136,14 @@ function renderTodayCard() {
       const wk = e.sets.filter(s2 => s2.type !== 'warmup');
       const wu = e.sets.filter(s2 => s2.type === 'warmup');
       const notes = getExNotes();
-      const note = notes[e.exId] || '';
+      const libNote = notes[e.exId] || '';
+      const sessionNote = e.sessionNote || '';
       return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--text)">${e.exName}</div>
-            ${note ? `<div style="font-size:14px;color:#7a5c00;background:#fffbeb;border-left:3px solid #f59e0b;padding:6px 10px;border-radius:0 6px 6px 0;margin-top:4px;line-height:1.4">📝 ${note}</div>` : ''}
+            ${libNote ? `<div style="font-size:14px;color:#7a5c00;background:#fffbeb;border-left:3px solid #f59e0b;padding:6px 10px;border-radius:0 6px 6px 0;margin-top:4px;line-height:1.4">📝 ${libNote}</div>` : ''}
+            ${sessionNote ? `<div style="font-size:14px;color:#1e5a8a;background:#eef6fc;border-left:3px solid #3b82c4;padding:6px 10px;border-radius:0 6px 6px 0;margin-top:4px;line-height:1.4">💬 ${sessionNote}</div>` : ''}
           </div>
           <button onclick="deleteTodayEntry(${ses.id},${eIdx})" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);padding:2px 6px;line-height:1" title="Remove">&#x2715;</button>
         </div>
@@ -1155,12 +1157,21 @@ function renderTodayCard() {
             <button onclick="deleteTodaySet('${ses.id}',${eIdx},${si})" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--danger);padding:2px 6px;font-family:inherit">Del</button>
           </div>`;
         }).join('')}
-        <div style="margin-top:6px">
-          <div id="note-edit-area-${eIdx}" style="display:none">
-            <textarea id="note-edit-${eIdx}" style="font-family:'DM Sans',sans-serif;font-size:13px;width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;resize:none;height:60px;color:var(--text);background:var(--surface)">${note}</textarea>
-            <button onclick="saveTodayNote('${e.exId}',${eIdx})" class="btn btn-sm btn-g" style="margin-top:4px">Save note</button>
+        <div style="margin-top:6px;display:flex;gap:14px">
+          <div style="flex:1">
+            <div id="note-edit-area-${eIdx}" style="display:none;margin-bottom:6px">
+              <textarea id="note-edit-${eIdx}" placeholder="e.g. Keep elbows in — technique reminder" style="font-family:'DM Sans',sans-serif;font-size:13px;width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;resize:none;height:60px;color:var(--text);background:var(--surface)">${libNote}</textarea>
+              <button onclick="saveTodayNote('${e.exId}',${eIdx})" class="btn btn-sm btn-g" style="margin-top:4px">Save</button>
+            </div>
+            <button onclick="toggleTodayNote(${eIdx})" style="background:none;border:none;cursor:pointer;font-size:12px;color:#7a5c00;font-family:inherit;padding:2px 0">${libNote ? '✏️ Edit exercise note' : '+ Add exercise note'}</button>
           </div>
-          <button onclick="toggleTodayNote(${eIdx})" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--accent);font-family:inherit;padding:2px 0">${note ? '✏️ Edit note' : '+ Add note'}</button>
+          <div style="flex:1">
+            <div id="session-note-edit-area-${eIdx}" style="display:none;margin-bottom:6px">
+              <textarea id="session-note-edit-${eIdx}" placeholder="e.g. Felt tired today, used lighter weight" style="font-family:'DM Sans',sans-serif;font-size:13px;width:100%;padding:8px;border:1px solid var(--border2);border-radius:8px;resize:none;height:60px;color:var(--text);background:var(--surface)">${sessionNote}</textarea>
+              <button onclick="saveSessionNote('${ses.id}',${eIdx})" class="btn btn-sm btn-g" style="margin-top:4px">Save</button>
+            </div>
+            <button onclick="toggleSessionNote(${eIdx})" style="background:none;border:none;cursor:pointer;font-size:12px;color:#1e5a8a;font-family:inherit;padding:2px 0">${sessionNote ? "✏️ Edit today's note" : "+ Add today's note"}</button>
+          </div>
         </div>
       </div>`;
     }).join('')}
@@ -1179,6 +1190,22 @@ function toggleTodayNote(eIdx) {
 function saveTodayNote(exId, eIdx) {
   const val = document.getElementById('note-edit-' + eIdx)?.value.trim();
   if (val !== undefined) saveExNote(exId, val);
+  renderTodayCard();
+}
+
+function toggleSessionNote(eIdx) {
+  const area = document.getElementById('session-note-edit-area-' + eIdx);
+  if (!area) return;
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveSessionNote(sesId, eIdx) {
+  const id = parseInt(sesId);
+  const s = sessions.find(x => x.id === id);
+  if (!s || !s.entries[eIdx]) return;
+  const val = document.getElementById('session-note-edit-' + eIdx)?.value.trim() || '';
+  s.entries[eIdx].sessionNote = val;
+  save();
   renderTodayCard();
 }
 
@@ -3314,6 +3341,7 @@ function renderHistory() {
               </div>`;
             }).join('')}
           </div>
+          ${e.sessionNote ? `<div style="font-size:13px;color:#1e5a8a;background:#eef6fc;border-left:3px solid #3b82c4;padding:6px 10px;border-radius:0 6px 6px 0;margin-top:6px;line-height:1.4">💬 ${e.sessionNote}</div>` : ''}
         </div>`;
       }).join('')}
       <!-- ADD EXERCISE TO SESSION -->
