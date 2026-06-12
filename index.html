@@ -1826,7 +1826,7 @@ function selectSuggestion(id) {
     + handToggle
     + '</div>'
     + '<div style="margin-bottom:10px">'
-    + '<span class="lbl">📝 My notes</span>'
+    + '<span class="lbl">📝 Exercise note (permanent)</span>'
     + '<textarea id="sg-note" placeholder="e.g. Keep elbows in, relax shoulders..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:70px;line-height:1.5">' + note + '</textarea>'
     + '</div>'
     + '<button class="btn btn-g" onclick="saveSuggestion(\'' + id + '\')" style="width:100%;font-size:15px;padding:10px">Save &amp; log</button>'
@@ -1940,7 +1940,7 @@ function selectExAndOpenForm(id) {
     + handToggle
     + '</div>'
     + '<div style="margin-bottom:10px">'
-    + '<span class="lbl">📝 My notes</span>'
+    + '<span class="lbl">📝 Exercise note (permanent)</span>'
     + '<textarea id="il-note" placeholder="e.g. Keep elbows in, relax shoulders, trainer tip..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:70px;line-height:1.5">' + note + '</textarea>'
     + '</div>'
     + '<button class="btn btn-g" onclick="saveInlineSet(\'' + id + '\')" style="width:100%;font-size:15px;padding:10px">Save &amp; log</button>'
@@ -2855,7 +2855,7 @@ function renderLibrary() {
                   + (ex.desc ? '<div style="font-size:15px;color:#111;margin-bottom:10px;line-height:1.5"><strong>How to:</strong> ' + ex.desc + '</div>' : '')
                   + (ex.targets ? '<div style="font-size:13px;color:#333;margin-bottom:8px"><strong>Targets:</strong> ' + ex.targets + '</div>' : '')
                   + (ex.tip ? '<div style="font-size:13px;color:var(--accent);background:var(--alight);padding:10px 12px;border-radius:8px;margin-bottom:10px;line-height:1.5">💪 ' + ex.tip + '</div>' : '')
-                  + '<div><div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 My notes</div>'
+                  + '<div><div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px">📝 Exercise note (permanent)</div>'
                   + '<textarea id="note-' + ex.id + '" placeholder="e.g. Keep elbows in, relax shoulders..." style="font-family:\'DM Sans\',sans-serif;font-size:14px;width:100%;padding:10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);resize:none;height:80px;line-height:1.5">' + note + '</textarea>'
                   + '<button onclick="saveExNote(\'' + ex.id + '\',document.getElementById(\'note-' + ex.id + '\').value);renderLibrary()" class="btn btn-sm btn-g" style="margin-top:6px">Save note</button>'
                   + '</div></div>' : '')
