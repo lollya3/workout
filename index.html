@@ -604,6 +604,22 @@ const EX = [
  desc:'Balance on one leg, hinge forward at hip letting free leg extend behind. Hold light dumbbell in opposite hand.',
  targets:'Hamstrings, glutes, balance, proprioception',
  svg: svg(`${head(27,17)}${bar(27,25,45,35)}${bar(45,35,60,49)}${bar(45,35,86,29)}${bar(35,25,27,35)}${db(24,41)}`)},
+{id:'wall_sit',name:'Wall sit',cat:'legs',loc:['gym','home','travel'],
+ tip:'Knees at 90 degrees, back flat against the wall, thighs parallel to floor. Breathe steadily through the hold.',
+ desc:'Lean back against a wall, slide down until knees are bent at 90 degrees as if sitting in a chair. Hold the position.',
+ targets:'Quadriceps, glutes, core, isometric endurance'},
+{id:'hanging',name:'Dead hang',cat:'back',loc:['gym'],
+ tip:'Relax your shoulders away from your ears. A dead hang decompresses the spine and builds grip strength.',
+ desc:'Hang from a pull-up bar with arms fully extended, feet off the ground. Hold as long as comfortable.',
+ targets:'Grip strength, shoulders, lats, spinal decompression'},
+{id:'chair_pose',name:'Chair pose (yoga)',cat:'yoga',loc:['gym','home','travel'],
+ tip:'Weight in the heels, knees tracking over toes, arms reaching up by the ears.',
+ desc:'Stand with feet together, bend knees and lower hips as if sitting in a chair, raise arms overhead. Hold the position.',
+ targets:'Quadriceps, glutes, core, shoulders'},
+{id:'side_plank',name:'Side plank',cat:'core',loc:['gym','home','travel'],
+ tip:'Stack hips and shoulders in one straight line. Don\'t let the hips sag toward the floor.',
+ desc:'Lie on your side, prop up on one forearm, lift hips so body forms a straight line from head to feet. Hold the position.',
+ targets:'Obliques, glutes, shoulders, lateral chain'},
 // MOBILITY
 {id:'cat_cow',name:'Cat / Cow',cat:'mobility',loc:['gym','home','travel'],
  tip:'Breathe into each position — exhale as you round (cat), inhale as you arch (cow). Never rush.',
@@ -2225,6 +2241,149 @@ function getPlankLast() {
   const past = records.filter(r => r.date < today);
   return past.length ? past[past.length-1] : null;
 }
+// ── TIMED HOLDS (wall sit, hanging, one-leg stand, etc.) ────
+const TIMED_HOLD_DEFAULTS = ['wall_sit', 'hanging', 'single_leg_stand', 'chair_pose', 'side_plank'];
+
+function getTimedHoldTypes() {
+  try {
+    const custom = JSON.parse(localStorage.getItem('wt-timed-hold-types') || 'null');
+    return custom || TIMED_HOLD_DEFAULTS;
+  } catch(e) { return TIMED_HOLD_DEFAULTS; }
+}
+function saveTimedHoldTypes(types) {
+  localStorage.setItem('wt-timed-hold-types', JSON.stringify(types));
+}
+function getTimedHoldLabel(id) {
+  const ex = EX.find(e => e.id === id);
+  if (ex) return ex.name;
+  const custom = getCustomHoldLabels();
+  return custom[id] || id;
+}
+function getCustomHoldLabels() {
+  try { return JSON.parse(localStorage.getItem('wt-custom-hold-labels') || '{}'); } catch(e) { return {}; }
+}
+function saveCustomHoldLabel(id, label) {
+  const labels = getCustomHoldLabels();
+  labels[id] = label;
+  localStorage.setItem('wt-custom-hold-labels', JSON.stringify(labels));
+}
+
+function getTimedHoldRecords() {
+  try { return JSON.parse(localStorage.getItem('wt-timed-holds') || '[]'); } catch(e) { return []; }
+}
+function saveTimedHoldRecord(typeId, secs) {
+  const records = getTimedHoldRecords();
+  records.push({id: Date.now(), date: localDate(), typeId, secs});
+  localStorage.setItem('wt-timed-holds', JSON.stringify(records));
+}
+function deleteTimedHoldRecord(id) {
+  const records = getTimedHoldRecords().filter(r => r.id !== id);
+  localStorage.setItem('wt-timed-holds', JSON.stringify(records));
+  renderDaily();
+}
+function getTimedHoldPR(typeId) {
+  const records = getTimedHoldRecords().filter(r => r.typeId === typeId);
+  return records.length ? Math.max(...records.map(r => r.secs)) : 0;
+}
+
+let timedHoldSelected = getTimedHoldTypes()[0] || 'wall_sit';
+let timedHoldTimerSeconds = 0;
+let timedHoldTimerRunning = false;
+let timedHoldTimerInterval = null;
+
+function selectTimedHoldType() {
+  const sel = document.getElementById('timed-hold-select');
+  if (!sel) return;
+  if (sel.value === '__add_new__') {
+    showAddTimedHoldForm();
+    return;
+  }
+  timedHoldSelected = sel.value;
+  renderDaily();
+}
+
+function showAddTimedHoldForm() {
+  const area = document.getElementById('timed-hold-add-area');
+  if (area) area.style.display = 'block';
+}
+
+function addCustomTimedHold() {
+  const input = document.getElementById('timed-hold-new-name');
+  const name = input?.value.trim();
+  if (!name) return;
+  const id = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const types = getTimedHoldTypes();
+  if (!types.includes(id)) types.push(id);
+  saveTimedHoldTypes(types);
+  saveCustomHoldLabel(id, name);
+  timedHoldSelected = id;
+  renderDaily();
+}
+
+function startTimedHoldTimer() {
+  if (timedHoldTimerRunning) return;
+  timedHoldTimerRunning = true;
+  timedHoldTimerInterval = setInterval(() => {
+    timedHoldTimerSeconds++;
+    const el = document.getElementById('timed-hold-timer-display');
+    if (el) el.textContent = formatPlankTime(timedHoldTimerSeconds);
+  }, 1000);
+  const startBtn = document.getElementById('timed-hold-start-btn');
+  const stopBtn = document.getElementById('timed-hold-stop-btn');
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn) stopBtn.style.display = 'inline-block';
+}
+
+function stopTimedHoldTimer() {
+  clearInterval(timedHoldTimerInterval);
+  timedHoldTimerRunning = false;
+  const secs = timedHoldTimerSeconds;
+  timedHoldTimerSeconds = 0;
+  timedHoldTimerInterval = null;
+
+  const display = document.getElementById('timed-hold-timer-display');
+  const startBtn = document.getElementById('timed-hold-start-btn');
+  const stopBtn = document.getElementById('timed-hold-stop-btn');
+  if (display) display.textContent = formatPlankTime(secs);
+  if (startBtn) startBtn.style.display = 'none';
+  if (stopBtn) stopBtn.style.display = 'none';
+
+  const confirmRow = document.getElementById('timed-hold-confirm-row');
+  const confirmInput = document.getElementById('timed-hold-confirm-input');
+  if (confirmRow) confirmRow.style.display = 'flex';
+  if (confirmInput) confirmInput.value = formatPlankTime(secs);
+}
+
+function confirmTimedHoldSave() {
+  const val = document.getElementById('timed-hold-confirm-input')?.value.trim();
+  if (!val) return;
+  let secs = 0;
+  if (val.includes(':')) { const [m,s] = val.split(':').map(Number); secs = m*60+s; }
+  else secs = parseInt(val) || 0;
+  if (secs > 0) saveTimedHoldRecord(timedHoldSelected, secs);
+  renderDaily();
+}
+
+function saveTimedHoldManual() {
+  const inp = document.getElementById('timed-hold-manual-input');
+  if (!inp) return;
+  const val = inp.value.trim();
+  let secs = 0;
+  if (val.includes(':')) { const [m,s] = val.split(':').map(Number); secs = m*60+s; }
+  else secs = parseInt(val) || 0;
+  if (secs > 0) saveTimedHoldRecord(timedHoldSelected, secs);
+  renderDaily();
+}
+
+function toggleTimedHoldHistory() {
+  const el = document.getElementById('timed-hold-history-list');
+  const chev = document.getElementById('timed-hold-history-chev');
+  if (!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? 'block' : 'none';
+  if (chev) chev.innerHTML = open ? '&#9650;' : '&#9660;';
+}
+
 function formatPlankTime(s) {
   return s >= 60 ? Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') : s + 's';
 }
@@ -2399,9 +2558,76 @@ function renderDaily() {
     + '</div></div></div>'
     + celebrationHTML
     + '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">' + itemsHTML + '</div>'
-    + (!dailyEditMode ? '<div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="resetDailyChecks()" style="color:var(--text3)">&#8635; Reset checks</button></div>' : '');
+    + (!dailyEditMode ? '<div style="display:flex;gap:8px;margin-bottom:14px"><button class="btn btn-sm" onclick="resetDailyChecks()" style="color:var(--text3)">&#8635; Reset checks</button></div>' : '')
+    + renderTimedHoldsCard();
 
   if (allDone) setTimeout(launchFireworks, 50);
+}
+
+function renderTimedHoldsCard() {
+  const types = getTimedHoldTypes();
+  const records = getTimedHoldRecords().filter(r => r.typeId === timedHoldSelected);
+  const pr = getTimedHoldPR(timedHoldSelected);
+  const today = localDate();
+  const todayRecords = records.filter(r => r.date === today);
+  const todayBest = todayRecords.length ? Math.max(...todayRecords.map(r => r.secs)) : 0;
+
+  const options = types.map(t =>
+    '<option value="' + t + '"' + (t === timedHoldSelected ? ' selected' : '') + '>' + getTimedHoldLabel(t) + '</option>'
+  ).join('') + '<option value="__add_new__">+ Add new exercise...</option>';
+
+  return '<div class="card" style="margin-bottom:14px">'
+    + '<div style="font-family:\'DM Serif Display\',serif;font-size:18px;color:var(--text);margin-bottom:10px">&#9201; Timed Holds</div>'
+    + '<select id="timed-hold-select" onchange="selectTimedHoldType()" style="font-size:15px;width:100%;margin-bottom:10px">' + options + '</select>'
+    + '<div id="timed-hold-add-area" style="display:none;margin-bottom:10px;background:var(--alight);border:1px solid var(--accent);border-radius:var(--r);padding:10px">'
+    + '<div style="font-size:13px;color:var(--text2);margin-bottom:6px">New exercise name:</div>'
+    + '<input type="text" id="timed-hold-new-name" placeholder="e.g. Plow pose" style="font-size:15px;padding:8px 10px;width:100%;margin-bottom:8px">'
+    + '<button onclick="addCustomTimedHold()" class="btn btn-g btn-sm">Add &amp; remember</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+    + '<div id="timed-hold-timer-display" style="font-family:\'DM Serif Display\',serif;font-size:32px;color:var(--accent);min-width:70px">' + formatPlankTime(timedHoldTimerSeconds) + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:5px">'
+    + '<button id="timed-hold-start-btn" onclick="startTimedHoldTimer()" class="btn btn-g btn-sm"' + (timedHoldTimerRunning?' style="display:none"':'') + '>▶ Start</button>'
+    + '<button id="timed-hold-stop-btn" onclick="stopTimedHoldTimer()" class="btn btn-sm" style="color:var(--danger);border-color:var(--danger);' + (!timedHoldTimerRunning?'display:none':'') + '">■ Stop</button>'
+    + '</div></div>'
+    + '<div id="timed-hold-confirm-row" style="display:none;gap:8px;align-items:center;margin-bottom:8px;background:var(--alight);border:1px solid var(--accent);border-radius:var(--r);padding:10px">'
+    + '<div style="flex:1">'
+    + '<div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:5px">Edit time if needed, then confirm:</div>'
+    + '<input type="text" id="timed-hold-confirm-input" style="font-size:16px;padding:8px 10px;width:100%" placeholder="e.g. 1:00 or 60">'
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">'
+    + '<button onclick="confirmTimedHoldSave()" class="btn btn-g btn-sm">✓ Save</button>'
+    + '<button onclick="renderDaily()" class="btn btn-sm" style="color:var(--text3)">Discard</button>'
+    + '</div></div>'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">'
+    + '<input type="text" id="timed-hold-manual-input" placeholder="or enter time e.g. 1:30 or 90" style="font-size:14px;padding:7px 10px;flex:1">'
+    + '<button onclick="saveTimedHoldManual()" class="btn btn-sm btn-g">Save</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;margin-bottom:10px">'
+    + '<div style="background:var(--gold-light);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
+    + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--gold)">PR</div>'
+    + '<div style="font-family:\'DM Serif Display\',serif;font-size:18px;color:var(--gold)">' + (pr ? formatPlankTime(pr) : '—') + '</div>'
+    + '</div>'
+    + '<div style="background:var(--surface2);border-radius:var(--r);padding:8px 12px;flex:1;text-align:center">'
+    + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text3)">Today</div>'
+    + '<div style="font-family:\'DM Serif Display\',serif;font-size:18px;color:var(--accent)">' + (todayBest ? formatPlankTime(todayBest) : '—') + '</div>'
+    + '</div>'
+    + '</div>'
+    + (records.length ? '<div style="border-top:1px solid var(--border);padding-top:8px">'
+      + '<div onclick="toggleTimedHoldHistory()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">'
+      + '<div style="font-size:13px;font-weight:600;color:var(--text2)">History (' + records.length + ')</div>'
+      + '<span id="timed-hold-history-chev" style="font-size:12px;color:var(--text3)">&#9660;</span>'
+      + '</div>'
+      + '<div id="timed-hold-history-list" style="display:none;margin-top:8px;max-height:200px;overflow-y:auto">'
+      + [...records].reverse().map(r =>
+          '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'
+          + '<div><div style="font-size:14px;font-weight:600;color:var(--text)">' + formatPlankTime(r.secs) + '</div>'
+          + '<div style="font-size:11px;color:var(--text3)">' + new Date(r.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}) + '</div></div>'
+          + '<button onclick="deleteTimedHoldRecord(' + r.id + ')" class="btn btn-sm" style="font-size:11px;color:var(--danger);border-color:var(--danger)">Delete</button>'
+          + '</div>'
+        ).join('')
+      + '</div></div>' : '')
+    + '</div>';
 }
 
 function moveDailyItem(idx, direction) {
@@ -3623,6 +3849,30 @@ function launchWaterCelebration() {
   setTimeout(() => el.remove(), 2500);
 }
 
+// ── PROTEIN TRACKING ────────────────────────────────────────
+function getProteinKey() { return 'wt-protein-' + localDate(); }
+function getProteinToday() { return parseInt(localStorage.getItem(getProteinKey()) || '0'); }
+function getProteinGoal() {
+  const weightData = getWeightData();
+  const sorted = [...weightData].sort((a,b) => a.date.localeCompare(b.date));
+  const latest = sorted[sorted.length - 1];
+  if (!latest) return null;
+  return {low: Math.round(latest.weight * 0.7), high: Math.round(latest.weight * 1)};
+}
+function addProtein() {
+  const input = document.getElementById('protein-add-input');
+  const amt = parseInt(input?.value);
+  if (!amt || amt <= 0) return;
+  const current = getProteinToday();
+  localStorage.setItem(getProteinKey(), current + amt);
+  if (input) input.value = '';
+  renderDashboard();
+}
+function resetProtein() {
+  localStorage.setItem(getProteinKey(), 0);
+  renderDashboard();
+}
+
 // ── GLUCOSE TRACKING ───────────────────────────────────────
 function getGlucoseData() {
   try { return JSON.parse(localStorage.getItem('wt-glucose') || '[]'); } catch(e) { return []; }
@@ -4006,6 +4256,11 @@ function renderDashboard() {
       const waterDone = cups >= goal;
       const pct = Math.min(cups / goal * 100, 100);
 
+      // Protein data
+      const proteinToday = getProteinToday();
+      const proteinGoal = getProteinGoal();
+      const proteinPct = proteinGoal ? Math.min(proteinToday / proteinGoal.high * 100, 100) : 0;
+
       // Glucose data
       const glucoseData = getGlucoseData();
       const todayGlucose = glucoseData.filter(g => g.date === today);
@@ -4070,6 +4325,22 @@ function renderDashboard() {
         + '<button onclick="addWaterCup()" class="btn btn-g" style="flex:2;font-size:15px;padding:10px">+ 1 cup</button>'
         + '<button onclick="removeWaterCup()" class="btn" style="flex:1;font-size:15px;padding:10px;color:var(--text3)"' + (cups === 0 ? ' disabled' : '') + '>- 1</button>'
         + '<button onclick="resetWater()" class="btn" style="flex:1;font-size:13px;padding:10px;color:var(--text3)">Reset</button>'
+        + '</div></div>'
+
+        // PROTEIN
+        + '<div style="border-top:1px solid var(--border);padding-top:14px;margin-bottom:14px">'
+        + '<div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px">&#129385; Protein</div>'
+        + '<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Tip: 0.7&ndash;1g per pound of body weight is ideal' + (proteinGoal ? " — that's " + proteinGoal.low + '&ndash;' + proteinGoal.high + 'g for you' : '') + '</div>'
+        + '<div style="display:flex;align-items:center;gap:14px;margin-bottom:12px">'
+        + '<div style="font-family:\'DM Serif Display\',serif;font-size:40px;color:var(--accent);line-height:1">' + proteinToday + '</div>'
+        + '<div style="flex:1">'
+        + '<div style="font-size:14px;color:#333;margin-bottom:6px">grams today' + (proteinGoal ? ' &middot; goal ' + proteinGoal.low + '&ndash;' + proteinGoal.high + 'g' : '') + '</div>'
+        + (proteinGoal ? '<div style="background:var(--surface2);border-radius:20px;height:10px;overflow:hidden"><div style="background:linear-gradient(90deg,#e8590c,#ff8c42);height:100%;width:' + proteinPct + '%;border-radius:20px"></div></div>' : '')
+        + '</div></div>'
+        + '<div style="display:flex;gap:8px">'
+        + '<input type="number" id="protein-add-input" placeholder="grams e.g. 25" style="font-size:15px;padding:10px 12px;flex:1">'
+        + '<button onclick="addProtein()" class="btn btn-g" style="flex-shrink:0;font-size:15px;padding:10px 16px">+ Add</button>'
+        + '<button onclick="resetProtein()" class="btn" style="flex-shrink:0;font-size:13px;padding:10px;color:var(--text3)">Reset</button>'
         + '</div></div>'
 
         // GLUCOSE
